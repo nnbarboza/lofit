@@ -55,7 +55,7 @@ img{display:block}
 .hero-txt{position:absolute;left:22px;right:22px;bottom:26px;z-index:2}
 .hero-txt h1{margin:0;line-height:.92;font-size:52px;text-transform:uppercase;
   font-family:'Bebas Neue',sans-serif;letter-spacing:1px;text-shadow:0 3px 14px rgba(0,0,0,.6)}
-.hero-txt h1 .acc{color:var(--red);display:inline-block}
+.hero-txt h1 .acc{color:var(--red);display:block}
 
 /* ---------- rutina actual ---------- */
 .rutina-row{display:flex;align-items:center;gap:12px;padding:4px 22px 20px}
@@ -63,6 +63,7 @@ img{display:block}
   text-transform:uppercase}
 
 /* ---------- cards ---------- */
+.qlabel{padding:4px 22px 12px;font-size:13px;letter-spacing:1px;color:var(--mut);text-transform:uppercase;font-weight:600}
 .cards{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;padding:0 16px 6px}
 .card{position:relative;border-radius:16px;padding:14px 6px 12px;text-align:center;
   background:linear-gradient(180deg,var(--card2),var(--card));
@@ -87,34 +88,60 @@ img{display:block}
 .sec-head .t{font-family:'Bebas Neue';font-size:18px;letter-spacing:.5px;text-transform:uppercase}
 .sec-head .more{color:var(--red);font-size:12px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase}
 
-/* ---------- week ---------- */
-.weekbar{margin:0 16px;background:var(--card);border:1px solid var(--line);border-radius:18px;
-  padding:16px 14px 12px}
-.week-top{display:flex;align-items:center;justify-content:space-between;gap:8px}
-.week-count .n{font-family:'Bebas Neue';font-size:34px;line-height:.85}
-.week-count .n b{color:var(--red);font-weight:400}
-.week-count .lab{font-size:10px;letter-spacing:1px;color:var(--mut);text-transform:uppercase;line-height:1.2;margin-top:4px}
-.days{display:flex;gap:0;flex:1;justify-content:space-between;padding:0 6px}
-.day{display:flex;flex-direction:column;align-items:center;gap:6px;width:30px}
-.day .dn{font-size:10px;letter-spacing:.5px;color:var(--mut);text-transform:uppercase}
-.day .dot{width:26px;height:26px;border-radius:50%;border:2px solid var(--line2);
-  display:flex;align-items:center;justify-content:center;position:relative}
-.day.done .dot{border-color:transparent}
-.day .dot svg{width:13px;height:13px;display:none}
-.day.done .dot svg{display:block}
-.day.today .dot{border-color:var(--txt)}
-.day .marker{height:6px;margin-top:1px}
-.day .mk{width:5px;height:5px;border-radius:50%;display:inline-block}
-.day.today .marker svg{width:9px;height:9px;fill:var(--red);display:block}
-.week-time{text-align:center;border:1px solid var(--line2);border-radius:12px;padding:8px 12px;min-width:70px}
-.week-time .tm{font-family:'Bebas Neue';font-size:20px;color:var(--red);line-height:1}
-.week-time .lab{font-size:8px;letter-spacing:1px;color:var(--mut);text-transform:uppercase;margin-top:3px;line-height:1.2}
-.week-goal{text-align:center;font-size:11px;letter-spacing:1.5px;color:var(--mut);text-transform:uppercase;
-  margin-top:14px;padding-top:12px;border-top:1px solid var(--line)}
-.week-nav{display:flex;align-items:center;gap:6px}
-.week-nav .wlabel{font-size:11px;letter-spacing:1px;color:var(--mut);text-transform:uppercase}
-.week-nav button{color:var(--mut);font-size:18px;padding:2px 4px}
-.week-nav button:disabled{opacity:.25}
+/* ---------- week card (nueva) ---------- */
+.weekbar{margin:0 16px;background:var(--card);border:1px solid var(--line);border-radius:18px;padding:16px 16px 14px}
+.wk-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
+.wk-title{font-family:'Bebas Neue';font-size:18px;letter-spacing:.5px;text-transform:uppercase}
+.wk-nav{display:flex;align-items:center;gap:8px}
+.wk-nav .wl{font-size:11px;letter-spacing:1px;color:var(--mut);text-transform:uppercase}
+.wk-nav button{color:var(--mut);font-size:18px;padding:2px 4px;line-height:1}
+.wk-nav button:disabled{opacity:.25}
+.wk-days{display:flex;justify-content:space-between;gap:2px}
+.wk-day{display:flex;flex-direction:column;align-items:center;gap:7px;flex:1;min-width:0}
+.wk-day .dn{font-size:10px;letter-spacing:.5px;color:var(--mut);text-transform:uppercase}
+.wk-circle{width:24px;height:24px;border-radius:50%;border:2px solid var(--line2);background:transparent}
+.wk-circle.on{background:#fff;border-color:#fff}
+.wk-day.today .dn{color:var(--txt)}
+.wk-day.today .wk-circle{box-shadow:0 0 0 2px var(--bg),0 0 0 3.5px var(--red)}
+.wk-dots{height:6px;display:flex;gap:3px;align-items:center;justify-content:center}
+.wk-dots .d{width:5px;height:5px;border-radius:50%}
+.wk-km{font-size:9px;color:var(--mut);letter-spacing:.2px;white-space:nowrap}
+.wk-div{height:1px;background:var(--line);margin:14px 0}
+.wk-goals-lbl{font-size:10px;letter-spacing:1.5px;color:var(--mut);text-transform:uppercase;margin-bottom:8px}
+.wk-goals{display:flex;justify-content:space-between;gap:4px}
+.wk-goal{flex:1;text-align:center}
+.wk-goal.solo{text-align:left}
+.wk-goal .gl{font-size:10px;letter-spacing:.5px;color:var(--mut);text-transform:uppercase}
+.wk-goal .gv{font-family:'Inter';font-weight:800;font-size:22px;line-height:1;margin-top:3px;font-variant-numeric:tabular-nums}
+.wk-prog-top{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px}
+.wk-prog-top .pl{font-size:10px;letter-spacing:1.5px;color:var(--mut);text-transform:uppercase}
+.wk-prog-top .pv{font-family:'Inter';font-weight:700;font-size:13px;color:var(--mut)}
+.wk-bar{height:7px;border-radius:4px;background:var(--line);overflow:hidden}
+.wk-bar i{display:block;height:100%;border-radius:4px;background:linear-gradient(90deg,#ffffff,#7c7a85)}
+.wk-time{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.wk-time .tlab{font-size:10px;letter-spacing:1.5px;color:var(--mut);text-transform:uppercase}
+.wk-time .tval{font-family:'Inter';font-weight:800;font-size:26px;line-height:1;font-variant-numeric:tabular-nums}
+.wk-time .tobj{font-size:11px;color:var(--mut);margin-top:3px}
+.wk-time .tic{font-size:26px}
+
+/* CTA cardio bajo la card */
+.cardio-cta{display:flex;align-items:center;gap:14px;width:calc(100% - 32px);margin:18px 16px 0;padding:16px 18px;border-radius:16px;text-align:left}
+.cardio-cta .cc-ic{width:46px;height:46px;border-radius:50%;border:2px solid rgba(255,255,255,.6);display:flex;align-items:center;justify-content:center;flex:none}
+.cardio-cta .cc-ic svg{width:24px;height:24px;stroke:#fff;stroke-width:1.8;fill:none}
+.cardio-cta .cc-t{flex:1}
+.cardio-cta .cc-t .t1{font-family:'Bebas Neue';font-size:19px;letter-spacing:.5px;color:#fff;text-transform:uppercase}
+.cardio-cta .cc-t .t2{font-size:12px;color:rgba(255,255,255,.85);margin-top:1px}
+.cardio-cta .cc-ch{color:#fff;font-size:22px}
+.cardio-cta:active{filter:brightness(.93)}
+
+/* formulario cardio */
+.field{margin:16px 16px 0}
+.field label{display:block;font-size:11px;letter-spacing:1.5px;color:var(--mut);text-transform:uppercase;margin-bottom:7px}
+.field input{width:100%;background:var(--card);border:1.5px solid var(--line2);border-radius:12px;padding:14px 16px;
+  color:var(--txt);font-family:'Inter';font-size:18px;font-weight:600}
+.field input:focus{outline:none;border-color:var(--teal)}
+.field2{display:flex;gap:12px;margin:16px 16px 0}
+.field2 .field{flex:1;margin:0}
 
 /* ---------- list ---------- */
 .list{margin:0 16px;background:var(--card);border:1px solid var(--line);border-radius:18px;overflow:hidden}
@@ -367,22 +394,10 @@ img{display:block}
     <div class="hero-txt"><h1 id="heroPhrase"></h1></div>
   </div>
 
-  <div class="rutina-row">
-    <span class="eyebrow">Rutina actual</span>
-    <span class="val" id="rutinaActual">—</span>
-  </div>
-
+  <div class="qlabel">¿Qué vamos a entrenar?</div>
   <div class="cards" id="cards"></div>
 
-  <div class="sec-head">
-    <span class="t">Tu semana</span>
-    <span class="week-nav">
-      <button id="wPrev" onclick="weekShift(-1)">‹</button>
-      <span class="wlabel" id="wLabel">Semana</span>
-      <button id="wNext" onclick="weekShift(1)">›</button>
-    </span>
-  </div>
-  <div class="weekbar" id="weekbar"></div>
+  <div class="weekbar" id="weekbar" style="margin-top:18px"></div>
 
   <div class="sec-head">
     <span class="t">Últimos entrenamientos</span>
@@ -398,6 +413,7 @@ img{display:block}
 <section class="screen" id="screen-mdone"></section>
 <section class="screen" id="screen-abs"></section>
 <section class="screen" id="screen-run"></section>
+<section class="screen" id="screen-cardiolog"></section>
 <section class="screen" id="screen-bike"></section>
 
 <!-- ============ RUTINA ============ -->
@@ -471,18 +487,20 @@ img{display:block}
    v0.1.0
    Arquitectura: index.html (GitHub Pages) + Apps Script /exec + Sheets
    =================================================================== */
-var VERSION = 'v0.3.0';
+var VERSION = 'v0.4.0';
 var BACKEND_URL = 'https://script.google.com/macros/s/AKfycbxHAlVHfjwy81evBc1ciFfkXYVvpWIg_ifnOonaaMvVuxxedl59pIiBkS47GIW7HNYj/exec';
 
 /* ---------- categorías ---------- */
 var CATS = [
-  {id:'muscle', label:'MUSCLE', tag:'FUERZA', color:'var(--red)',    emoji:'🏋️', counts:true},
-  {id:'abs',    label:'ABS',    tag:'CORE',   color:'var(--tan)',    emoji:'🤸', counts:false},
-  {id:'run',    label:'RUN',    tag:'CARDIO', color:'var(--teal)',   emoji:'🏃', counts:false},
-  {id:'bike',   label:'BIKE',   tag:'CARDIO', color:'var(--orange)', emoji:'🚴', counts:false}
+  {id:'muscle', label:'MUSCLE', tag:'FUERZA', color:'var(--red)',    emoji:'🏋️', counts:true,  goal:4, mins:50, dist:false},
+  {id:'abs',    label:'ABS',    tag:'CORE',   color:'var(--tan)',    emoji:'🤸', counts:false, goal:3, mins:10, dist:false},
+  {id:'run',    label:'RUN',    tag:'CARDIO', color:'var(--teal)',   emoji:'🏃', counts:false, goal:1, mins:30, dist:true},
+  {id:'bike',   label:'BIKE',   tag:'CARDIO', color:'var(--orange)', emoji:'🚴', counts:false, goal:2, mins:15, dist:true}
 ];
 var CATMAP = {}; CATS.forEach(function(c){CATMAP[c.id]=c;});
-var GOAL_FUERZA = 4; // único objetivo que cuenta
+var GOAL_FUERZA = 4; // objetivo de fuerza
+var GOAL_TOTAL = CATS.reduce(function(a,c){return a+c.goal;},0);          // 10
+var GOAL_MIN   = CATS.reduce(function(a,c){return a+c.goal*c.mins;},0);   // 290
 
 var NAV = [
   {id:'home',      label:'Taquilla',  nav:0, ic:'<rect x="3" y="3" width="8" height="18" rx="1.5"/><rect x="13" y="3" width="8" height="18" rx="1.5"/><line x1="7" y1="9" x2="7" y2="9.01"/><line x1="17" y1="9" x2="17" y2="9.01"/>'},
@@ -686,8 +704,10 @@ function seedState(){
     {id:'s_push', ts:at(0,8),  cat:'muscle', rutinaId:'r_epic', titulo:'A - Pecho y Bíceps', dia:'A', durSeg:72*60, volumen:0},
     {id:'s_pull', ts:at(1,8),  cat:'muscle', rutinaId:'r_epic', titulo:'B - Espalda y Tríceps', dia:'B', durSeg:78*60, volumen:0},
     {id:uid(),    ts:at(2,19), cat:'abs',    titulo:'ABS KILLER',     dia:'A', durSeg:28*60},
-    {id:uid(),    ts:at(3,7),  cat:'run',    titulo:'RUN EASY 5K',    dia:'',  durSeg:42*60},
-    {id:uid(),    ts:at(4,18), cat:'bike',   titulo:'BIKE INTERVALS', dia:'',  durSeg:65*60},
+    {id:uid(),    ts:at(3,7),  cat:'run',    titulo:'Rodaje suave',   dia:'',  durSeg:42*60, km:6.1},
+    {id:uid(),    ts:at(4,18), cat:'bike',   titulo:'Bike intervals', dia:'',  durSeg:65*60, km:24},
+    {id:uid(),    ts:at(2,7),  cat:'run',    titulo:'Intervalos 5x400m', dia:'', durSeg:27*60, km:5.2},
+    {id:uid(),    ts:at(-2,8), cat:'run',    titulo:'Carrera continua', dia:'', durSeg:40*60, km:7.3},
     {id:uid(),    ts:at(-3,8), cat:'muscle', rutinaId:'r_epic', titulo:'C - Piernas', dia:'C', durSeg:81*60}
   ];
   // series de ejemplo para que "TU MEJOR" e historial de volumen tengan datos
@@ -721,9 +741,8 @@ function renderHero(){
   var idx = Math.floor(Date.now()/864e5) % fr.length; // estable durante el día
   var parts = String(fr[idx]).split('|');
   var html = esc(parts[0]);
-  if(parts[1]) html += ' <span class="acc">'+esc(parts[1])+'</span>';
+  if(parts[1]) html += '<span class="acc">'+esc(parts[1])+'</span>';
   document.getElementById('heroPhrase').innerHTML = html;
-  document.getElementById('rutinaActual').textContent = state.activeRutina || '—';
 }
 function renderCards(){
   document.getElementById('cards').innerHTML = CATS.map(function(c){
@@ -739,49 +758,84 @@ function weekEntrenos(offset){
   var end = new Date(mon); end.setDate(end.getDate()+7);
   return (state.entrenos||[]).filter(function(e){ return e.ts>=mon.getTime() && e.ts<end.getTime(); });
 }
-function renderWeek(){
-  var base = new Date(); base.setDate(base.getDate()+weekOffset*7);
-  var mon = startOfWeek(base);
-  var now = new Date();
-  var list = weekEntrenos(weekOffset);
-  var fuerza = list.filter(function(e){ return CATMAP[e.cat] && CATMAP[e.cat].counts; }).length;
+/* ---- CARD DE SEMANA (unificada, reutilizable por categoría) ---- */
+var weekCtx = { el:'weekbar', mode:'all' };
+function distinct(arr){ var o={},r=[]; arr.forEach(function(x){ if(!o[x]){o[x]=1;r.push(x);} }); return r; }
+function fmtKm(n){ return (Math.round((Number(n)||0)*10)/10).toString().replace('.', ','); }
+
+function weekCardHtml(offset, mode){
+  var base = new Date(); base.setDate(base.getDate()+offset*7);
+  var mon = startOfWeek(base), now = new Date();
+  var all = weekEntrenos(offset);
+  var list = (mode && mode!=='all') ? all.filter(function(e){return e.cat===mode;}) : all;
+  var isDist = (mode==='run' || mode==='bike');
+
+  var doneByCat = {muscle:0,abs:0,run:0,bike:0};
+  all.forEach(function(e){ if(doneByCat[e.cat]!=null) doneByCat[e.cat]++; });
   var totalSec = list.reduce(function(a,e){ return a + (Number(e.durSeg)||0); }, 0);
 
-  // por día
   var byDay = [[],[],[],[],[],[],[]];
-  list.forEach(function(e){
-    var d = new Date(e.ts); var di = (d.getDay()+6)%7; byDay[di].push(e.cat);
-  });
+  list.forEach(function(e){ var d=new Date(e.ts); byDay[(d.getDay()+6)%7].push(e); });
 
-  var check = '<svg viewBox="0 0 24 24" fill="none" stroke="#0d0c0f" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l4 4 10-11"/></svg>';
-  var daysHtml = byDay.map(function(cats, i){
-    var dd = new Date(mon); dd.setDate(dd.getDate()+i);
-    var done = cats.length>0;
-    var isToday = sameDay(dd, now);
-    var first = done ? CATMAP[cats[0]].color : '';
-    var dotStyle = done ? 'background:'+first+';' : '';
-    var markers = done ? cats.slice(0,3).map(function(c){
-        return '<span class="mk" style="background:'+CATMAP[c].color+'"></span>'; }).join('') : '';
-    if(isToday && !done) markers = '<svg viewBox="0 0 24 24"><path d="M5 3h14v18l-7-5-7 5z"/></svg>';
-    return '<div class="day'+(done?' done':'')+(isToday?' today':'')+'">'+
-      '<span class="dn">'+DOW[i]+'</span>'+
-      '<span class="dot" style="'+dotStyle+'">'+(done?check:'')+'</span>'+
-      '<span class="marker">'+markers+'</span></div>';
+  var daysHtml = byDay.map(function(evs,i){
+    var dd=new Date(mon); dd.setDate(dd.getDate()+i);
+    var done=evs.length>0, isToday=sameDay(dd,now);
+    var dots = done ? distinct(evs.map(function(e){return e.cat;})).map(function(c){
+      return '<span class="d" style="background:'+CATMAP[c].color+'"></span>'; }).join('') : '';
+    var km='';
+    if(isDist){ var k=evs.reduce(function(a,e){return a+(Number(e.km)||0);},0);
+      km='<span class="wk-km">'+(k?fmtKm(k)+' km':'·')+'</span>'; }
+    return '<div class="wk-day'+(isToday?' today':'')+'"><span class="dn">'+DOW[i]+'</span>'+
+      '<span class="wk-circle'+(done?' on':'')+'"></span>'+
+      '<span class="wk-dots">'+dots+'</span>'+km+'</div>';
   }).join('');
 
-  document.getElementById('weekbar').innerHTML =
-    '<div class="week-top">'+
-      '<div class="week-count"><div class="n"><b>'+fuerza+'</b>/'+GOAL_FUERZA+'</div>'+
-        '<div class="lab">Entrenos<br>completados</div></div>'+
-      '<div class="days">'+daysHtml+'</div>'+
-      '<div class="week-time"><div class="tm">'+fmtDur(totalSec)+'</div>'+
-        '<div class="lab">Tiempo<br>acumulado</div></div>'+
-    '</div>'+
-    '<div class="week-goal">Objetivo: '+GOAL_FUERZA+' entrenos de fuerza esta semana</div>';
+  // entrenos alcanzados
+  var goalsHtml, prog, goalN;
+  if(mode==='all' || !mode){
+    goalsHtml = CATS.map(function(c){
+      return '<div class="wk-goal"><div class="gl">'+c.label+'</div>'+
+        '<div class="gv" style="color:'+c.color+'">'+doneByCat[c.id]+'/'+c.goal+'</div></div>';
+    }).join('');
+    prog = CATS.reduce(function(a,c){ return a+Math.min(doneByCat[c.id],c.goal); },0);
+    goalN = GOAL_TOTAL;
+  } else {
+    var c = CATMAP[mode];
+    goalsHtml = '<div class="wk-goal solo"><div class="gl">'+c.label+'</div>'+
+      '<div class="gv" style="color:'+c.color+'">'+doneByCat[mode]+'/'+c.goal+'</div></div>';
+    prog = Math.min(doneByCat[mode], c.goal); goalN = c.goal;
+  }
+  var pct = goalN ? Math.round(prog/goalN*100) : 0;
+  var objMin = (mode==='all'||!mode) ? GOAL_MIN : (CATMAP[mode].goal*CATMAP[mode].mins);
 
-  document.getElementById('wLabel').textContent = 'Semana ' + isoWeek(mon);
-  document.getElementById('wNext').disabled = (weekOffset>=0);
+  return '<div class="wk-top"><span class="wk-title">Tu semana</span>'+
+      '<span class="wk-nav"><button onclick="weekNav(-1)">‹</button>'+
+        '<span class="wl">Semana '+isoWeek(mon)+'</span>'+
+        '<button onclick="weekNav(1)"'+(offset>=0?' disabled':'')+'>›</button></span></div>'+
+    '<div class="wk-days">'+daysHtml+'</div>'+
+    '<div class="wk-div"></div>'+
+    '<div class="wk-goals-lbl">Entrenos alcanzados</div>'+
+    '<div class="wk-goals">'+goalsHtml+'</div>'+
+    '<div style="margin-top:14px"><div class="wk-prog-top"><span class="pl">Progreso semanal</span>'+
+      '<span class="pv">'+prog+'/'+goalN+'</span></div>'+
+      '<div class="wk-bar"><i style="width:'+pct+'%"></i></div></div>'+
+    '<div class="wk-div"></div>'+
+    '<div class="wk-time"><div><div class="tlab">Tiempo acumulado</div>'+
+      '<div class="tval">'+fmtDur(totalSec)+'</div>'+
+      '<div class="tobj">Objetivo semanal: '+objMin+'m</div></div>'+
+      '<span class="tic">⏱️</span></div>';
 }
+function renderWeekBlock(container, mode){
+  weekCtx = { el:container, mode:mode };
+  var el = document.getElementById(container);
+  if(el) el.innerHTML = weekCardHtml(weekOffset, mode);
+}
+function weekNav(delta){
+  var n = weekOffset + delta; if(n>0) n=0; weekOffset = n;
+  var el = document.getElementById(weekCtx.el);
+  if(el) el.innerHTML = weekCardHtml(weekOffset, weekCtx.mode);
+}
+function renderWeek(){ renderWeekBlock('weekbar', 'all'); }
 function liHtml(e, withChev){
   var c = CATMAP[e.cat] || {label:'',color:'var(--mut)',emoji:'•'};
   return '<div class="li">'+
@@ -902,14 +956,9 @@ function goScreen(id, navIdx){
 }
 function openCat(catId){
   if(catId==='muscle'){ openMuscle(); return; }
+  if(catId==='run' || catId==='bike'){ openCardio(catId); return; }
   renderCardScreen(catId);
   goScreen(catId, 0);
-}
-function weekShift(d){
-  var n = weekOffset + d;
-  if(n>0) n=0;            // no tiene sentido ir al futuro
-  weekOffset = n;
-  renderWeek();
 }
 function updateApp(){
   if('serviceWorker' in navigator){
@@ -1017,7 +1066,7 @@ function bodySvg(musculo){
 }
 
 /* ---------- LANDING ---------- */
-function openMuscle(){ renderMuscleLanding(); goScreen('muscle', 0); }
+function openMuscle(){ weekOffset=0; renderMuscleLanding(); goScreen('muscle', 0); }
 function setActiveMus(id){ bk('setActiveRutina', {id:id}); renderMuscleLanding(); }
 
 function renderMuscleLanding(){
@@ -1057,14 +1106,12 @@ function renderMuscleLanding(){
     resume+
     '<div class="sec-head"><span class="t">Elige tu entreno</span></div>'+
     '<div class="daylist">'+dayCards+'</div>'+
-    '<div class="sec-head"><span class="t">Tu semana</span>'+
-      '<span class="week-nav"><span class="wlabel">Semana '+isoWeek(startOfWeek(new Date()))+'</span></span></div>'+
-    '<div class="weekbar" id="weekbarM"></div>'+
+    '<div class="weekbar" id="weekbarM" style="margin-top:6px"></div>'+
     '<div class="sec-head"><span class="t">Últimos de fuerza</span>'+
       '<button class="more" onclick="goScreen(\'historial\',2)">Ver todos</button></div>'+
     '<div class="list" id="ultimosM"></div>';
 
-  renderWeekInto('weekbarM', 0, 'muscle');
+  renderWeekBlock('weekbarM', 'muscle');
   document.getElementById('ultimosM').innerHTML = ult.length
     ? ult.map(function(e){return liHtml(e,true);}).join('')
     : '<div class="empty">Sin entrenos de fuerza todavía.</div>';
@@ -1345,34 +1392,74 @@ function guardarSesion(){
 }
 function isoDateOf(ts){ var d=new Date(ts); return d.getFullYear()+'-'+pad2(d.getMonth()+1)+'-'+pad2(d.getDate()); }
 
-/* versión reutilizable de la barra de semana en cualquier contenedor.
-   catFilter opcional: si se pasa, solo cuenta entrenos de esa categoría. */
-function renderWeekInto(containerId, offset, catFilter){
-  var base = new Date(); base.setDate(base.getDate()+offset*7);
-  var mon = startOfWeek(base); var now = new Date();
-  var list = weekEntrenos(offset);
-  if(catFilter) list = list.filter(function(e){ return e.cat===catFilter; });
-  var fuerza = list.filter(function(e){ return CATMAP[e.cat] && CATMAP[e.cat].counts; }).length;
-  var totalSec = list.reduce(function(a,e){ return a + (Number(e.durSeg)||0); }, 0);
-  var byDay = [[],[],[],[],[],[],[]];
-  list.forEach(function(e){ var d=new Date(e.ts); byDay[(d.getDay()+6)%7].push(e.cat); });
-  var check = '<svg viewBox="0 0 24 24" fill="none" stroke="#0d0c0f" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l4 4 10-11"/></svg>';
-  var daysHtml = byDay.map(function(cats,i){
-    var dd=new Date(mon); dd.setDate(dd.getDate()+i);
-    var done=cats.length>0, isToday=sameDay(dd,now);
-    var first=done?CATMAP[cats[0]].color:'';
-    var markers = done ? cats.slice(0,3).map(function(c){return '<span class="mk" style="background:'+CATMAP[c].color+'"></span>';}).join('') : '';
-    if(isToday && !done) markers='<svg viewBox="0 0 24 24"><path d="M5 3h14v18l-7-5-7 5z"/></svg>';
-    return '<div class="day'+(done?' done':'')+(isToday?' today':'')+'"><span class="dn">'+DOW[i]+'</span>'+
-      '<span class="dot" style="'+(done?'background:'+first+';':'')+'">'+(done?check:'')+'</span>'+
-      '<span class="marker">'+markers+'</span></div>';
-  }).join('');
-  document.getElementById(containerId).innerHTML =
-    '<div class="week-top"><div class="week-count"><div class="n"><b>'+fuerza+'</b>/'+GOAL_FUERZA+'</div>'+
-      '<div class="lab">Entrenos<br>completados</div></div>'+
-      '<div class="days">'+daysHtml+'</div>'+
-      '<div class="week-time"><div class="tm">'+fmtDur(totalSec)+'</div><div class="lab">Tiempo<br>acumulado</div></div></div>'+
-    '<div class="week-goal">Objetivo: '+GOAL_FUERZA+' entrenos de fuerza esta semana</div>';
+/* ===================================================================
+   CARDIO (RUN / BIKE) — landing + registro simple
+   =================================================================== */
+function cardioLi(e){
+  var c = CATMAP[e.cat] || {color:'var(--mut)',emoji:'•'};
+  var km = (Number(e.km)||0) ? fmtKm(e.km)+' km' : '';
+  return '<div class="li">'+
+    '<div class="ico">'+imgHtml(e.cat, c.emoji)+'</div>'+
+    '<div class="mid"><div class="ti">'+esc(e.titulo)+'</div>'+
+      '<div class="cat" style="color:var(--mut)">'+relLabel(e.ts)+'</div></div>'+
+    '<div class="right">'+(km?'<span class="dur">'+km+'</span><br>':'')+fmtClock(e.durSeg)+'</div>'+
+  '</div>';
+}
+function openCardio(cat){
+  weekOffset = 0;
+  var c = CATMAP[cat];
+  var ult = entrenosByCat(cat).sort(function(a,b){return b.ts-a.ts;}).slice(0,6);
+  document.getElementById('screen-'+cat).innerHTML =
+    '<div class="scr-head"><button class="back" onclick="goScreen(\'home\',0)"><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg></button>'+
+      '<h2 class="bebas" style="font-size:34px;color:'+c.color+'">'+c.label+'</h2></div>'+
+    '<div class="scr-sub">'+c.tag+'</div>'+
+    '<button class="cardio-cta" style="background:'+c.color+'" onclick="openCardioLog(\''+cat+'\')">'+
+      '<span class="cc-ic">'+(cat==='run'
+        ? '<svg viewBox="0 0 24 24"><path d="M13 4a1 1 0 1 0 0-.01"/><path d="M7 21l3-6 4 2 1 4"/><path d="M5 12l4-2 3 3 4-1"/></svg>'
+        : '<svg viewBox="0 0 24 24"><circle cx="6" cy="17" r="3"/><circle cx="18" cy="17" r="3"/><path d="M6 17l4-7h4l2 7M10 10l2-4h3"/></svg>')+'</span>'+
+      '<span class="cc-t"><span class="t1">Registrar entrenamiento</span>'+
+        '<span class="t2">Registra tu tiempo'+(c.dist?' y kilómetros':'')+'</span></span>'+
+      '<span class="cc-ch">›</span></button>'+
+    '<div class="weekbar" id="weekbar'+cat+'" style="margin-top:18px"></div>'+
+    '<div class="sec-head"><span class="t">Últimos entrenamientos</span>'+
+      '<button class="more" onclick="goScreen(\'historial\',2)">Ver todos</button></div>'+
+    '<div class="list" id="ult'+cat+'"></div>';
+  renderWeekBlock('weekbar'+cat, cat);
+  document.getElementById('ult'+cat).innerHTML = ult.length
+    ? ult.map(cardioLi).join('')
+    : '<div class="empty">Sin entrenos todavía. ¡Registra el primero!</div>';
+  goScreen(cat, 0);
+}
+function openCardioLog(cat){
+  var c = CATMAP[cat];
+  var hoy = isoDateOf(Date.now());
+  document.getElementById('screen-cardiolog').innerHTML =
+    '<div class="scr-head"><button class="back" onclick="openCardio(\''+cat+'\')"><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg></button>'+
+      '<h2 style="color:'+c.color+'">Registrar '+esc(c.label)+'</h2></div>'+
+    '<div class="field"><label>Nombre (opcional)</label>'+
+      '<input id="clNombre" type="text" placeholder="'+(cat==='run'?'Rodaje suave':'Salida en bici')+'"></div>'+
+    '<div class="field2">'+
+      '<div class="field"><label>Tiempo (min)</label><input id="clMin" type="number" inputmode="numeric" placeholder="30"></div>'+
+      (c.dist?'<div class="field"><label>Distancia (km)</label><input id="clKm" type="number" inputmode="decimal" step="0.1" placeholder="5"></div>':'')+
+    '</div>'+
+    '<div class="field"><label>Fecha</label><input id="clFecha" type="date" value="'+hoy+'"></div>'+
+    '<button class="btn-primary" style="background:'+c.color+'" onclick="saveCardio(\''+cat+'\')">Guardar entrenamiento</button>'+
+    '<button class="btn-primary ghost" onclick="openCardio(\''+cat+'\')">Cancelar</button>';
+  goScreen('cardiolog', 0);
+}
+function saveCardio(cat){
+  var c = CATMAP[cat];
+  var min = parseFloat(document.getElementById('clMin').value)||0;
+  var kmEl = document.getElementById('clKm');
+  var km = kmEl ? (parseFloat(kmEl.value)||0) : 0;
+  if(min<=0){ alert('Pon el tiempo en minutos.'); return; }
+  var nombre = (document.getElementById('clNombre').value||'').trim() || c.label;
+  var fechaStr = document.getElementById('clFecha').value || isoDateOf(Date.now());
+  var ts = new Date(fechaStr+'T12:00:00').getTime(); if(isNaN(ts)) ts = Date.now();
+  var entreno = { id:'c_'+uid(), ts:ts, cat:cat, titulo:nombre, dia:'', rutinaId:'',
+    durSeg:Math.round(min*60), km:km, fecha:fechaStr, volumen:0, nota:'' };
+  bk('addEntreno', entreno);
+  openCardio(cat);
 }
 
 /* ===================================================================
