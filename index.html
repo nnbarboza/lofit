@@ -319,6 +319,9 @@ img{display:block}
 .btn-primary:active{filter:brightness(.92)}
 .btn-primary.ghost{background:none;border:1.5px solid var(--line2);color:var(--txt)}
 .btn-primary.green{background:var(--teal);color:#06201e}
+.btn-primary.danger{background:none;border:1.5px solid #5a2420;color:var(--red)}
+.btn-primary.danger:active{background:#1a1012}
+.li{cursor:pointer}
 
 /* rest ring */
 .restcard{margin:16px;background:var(--card);border:1px solid var(--line);border-radius:16px;padding:18px 16px;text-align:center}
@@ -415,6 +418,7 @@ img{display:block}
 <section class="screen" id="screen-abs"></section>
 <section class="screen" id="screen-run"></section>
 <section class="screen" id="screen-cardiolog"></section>
+<section class="screen" id="screen-edetail"></section>
 <section class="screen" id="screen-bike"></section>
 
 <!-- ============ RUTINA ============ -->
@@ -488,7 +492,7 @@ img{display:block}
    v0.1.0
    Arquitectura: index.html (GitHub Pages) + Apps Script /exec + Sheets
    =================================================================== */
-var VERSION = 'v0.4.1';
+var VERSION = 'v0.4.2';
 var BACKEND_URL = 'https://script.google.com/macros/s/AKfycbxHAlVHfjwy81evBc1ciFfkXYVvpWIg_ifnOonaaMvVuxxedl59pIiBkS47GIW7HNYj/exec';
 
 /* ---------- categorías ---------- */
@@ -520,6 +524,8 @@ var dataOrigin = 'local';
 var lastSync = 0;
 var histCat = 'all';
 var histPeriod = 'all';
+var currentScreenId = 'home';
+var detailBack = 'home';
 
 /* ===================================================================
    HELPERS
@@ -851,13 +857,13 @@ function entrenoTitle(e){
 function liHtml(e, withChev){
   var c = CATMAP[e.cat] || {label:'',color:'var(--mut)',emoji:'•'};
   var rt = (e.cat==='muscle' && e.rutinaId) ? rutinaNombre(e.rutinaId) : '';
-  return '<div class="li">'+
+  return '<div class="li" onclick="openEntreno(\''+esc(e.id)+'\')">'+
     '<div class="ico">'+imgHtml(e.cat, c.emoji)+'</div>'+
     '<div class="mid"><div class="ti">'+esc(entrenoTitle(e))+'</div>'+
       '<div class="cat" style="color:'+c.color+'">'+c.label+
         (rt?'<span class="rtag">'+esc(rt)+'</span>':'')+'</div></div>'+
     '<div class="right">'+relLabel(e.ts)+'<br><span class="dur">'+fmtDur(e.durSeg)+'</span></div>'+
-    (withChev?'<span class="chev">›</span>':'')+'</div>';
+    '<span class="chev">›</span></div>';
 }
 function sortedEntrenos(){
   return (state.entrenos||[]).slice().sort(function(a,b){ return b.ts-a.ts; });
@@ -961,6 +967,7 @@ function renderAll(){
    =================================================================== */
 function goScreen(id, navIdx){
   stopTick();
+  currentScreenId = id;
   document.querySelectorAll('.screen').forEach(function(s){ s.classList.remove('active'); });
   var scr = document.getElementById('screen-'+id);
   if(scr) scr.classList.add('active');
@@ -1444,12 +1451,12 @@ function isoDateOf(ts){ var d=new Date(ts); return d.getFullYear()+'-'+pad2(d.ge
 function cardioLi(e){
   var c = CATMAP[e.cat] || {color:'var(--mut)',emoji:'•'};
   var km = (Number(e.km)||0) ? fmtKm(e.km)+' km' : '';
-  return '<div class="li">'+
+  return '<div class="li" onclick="openEntreno(\''+esc(e.id)+'\')">'+
     '<div class="ico">'+imgHtml(e.cat, c.emoji)+'</div>'+
     '<div class="mid"><div class="ti">'+esc(e.titulo)+'</div>'+
       '<div class="cat" style="color:var(--mut)">'+relLabel(e.ts)+'</div></div>'+
     '<div class="right">'+(km?'<span class="dur">'+km+'</span><br>':'')+fmtClock(e.durSeg)+'</div>'+
-  '</div>';
+    '<span class="chev">›</span></div>';
 }
 function openCardio(cat){
   weekOffset = 0;
@@ -1506,6 +1513,78 @@ function saveCardio(cat){
     durSeg:Math.round(min*60), km:km, fecha:fechaStr, volumen:0, nota:'' };
   bk('addEntreno', entreno);
   openCardio(cat);
+}
+
+/* ===================================================================
+   DETALLE DE ENTRENO (ver + borrar)
+   =================================================================== */
+function navIndexFor(scr){ if(scr==='historial') return 2; if(scr==='perfil') return 4; return 0; }
+function openEntreno(id){
+  var e = (state.entrenos||[]).filter(function(x){return String(x.id)===String(id);})[0];
+  if(!e) return;
+  detailBack = currentScreenId;
+  renderEntreno(e);
+  goScreen('edetail', navIndexFor(detailBack));
+}
+function backFromDetail(){
+  if(detailBack==='historial'){ goScreen('historial',2); renderHistorial(); }
+  else if(detailBack==='muscle'){ openMuscle(); }
+  else if(detailBack==='run'){ openCardio('run'); }
+  else if(detailBack==='bike'){ openCardio('bike'); }
+  else { goScreen('home',0); renderAll(); }
+}
+function renderEntreno(e){
+  var c = CATMAP[e.cat] || {label:'',color:'var(--mut)'};
+  var body = '';
+  if(e.cat==='muscle'){
+    var sets = (state.series||[]).filter(function(s){return String(s.entrenoId)===String(e.id);});
+    var vol = sets.reduce(function(a,s){return a+(Number(s.peso)||0)*(Number(s.reps)||0);},0);
+    // agrupar por ejercicio en orden de aparición
+    var order=[], byEx={};
+    sets.forEach(function(s){ var k=s.ejercicioId||s.ejercicio; if(!byEx[k]){byEx[k]=[];order.push(k);} byEx[k].push(s); });
+    body += '<div class="volcard"><div><div class="vl">Volumen total</div><div class="vv">'+fmtMiles(vol)+' kg</div></div>'+
+      '<div style="text-align:right"><div class="vl">Series</div><div class="vv">'+sets.length+'</div></div></div>';
+    if(order.length){
+      body += order.map(function(k){
+        var arr=byEx[k].slice().sort(function(a,b){return (a.serie||0)-(b.serie||0);});
+        var rows=arr.map(function(s,i){
+          return '<div class="srow done"><span class="sn">'+(s.serie||i+1)+'</span>'+
+            '<span class="smid">'+fmtW(s.peso)+' kg x '+s.reps+' reps</span>'+
+            '<span class="scirc"><svg viewBox="0 0 24 24" fill="none" stroke="#06201e" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l4 4 10-11"/></svg></span></div>';
+        }).join('');
+        return '<div class="serieshd">'+esc(arr[0].ejercicio||k)+'</div><div class="serieslist">'+rows+'</div>';
+      }).join('');
+    } else {
+      body += '<div class="empty">Este entreno no tiene series guardadas.</div>';
+    }
+  } else {
+    // cardio
+    body += '<div class="sumcard">'+
+      '<div class="sr"><span>Tiempo</span><b>'+fmtClock(e.durSeg)+'</b></div>'+
+      ((Number(e.km)||0)?'<div class="sr"><span>Distancia</span><b>'+fmtKm(e.km)+' km</b></div>':'')+
+      ((Number(e.km)||0 && Number(e.durSeg)||0)?'<div class="sr"><span>Ritmo</span><b>'+ritmo(e)+'</b></div>':'')+
+    '</div>';
+  }
+
+  document.getElementById('screen-edetail').innerHTML =
+    '<div class="scr-head"><button class="back" onclick="backFromDetail()"><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg></button>'+
+      '<h2 style="font-size:24px">'+esc(entrenoTitle(e))+'</h2></div>'+
+    '<div class="scr-sub" style="color:'+c.color+'">'+c.label+
+      (e.cat==='muscle'&&e.rutinaId?' · '+esc(rutinaNombre(e.rutinaId)):'')+' · '+relLabel(e.ts)+'</div>'+
+    '<div class="sumcard" style="margin-top:12px">'+
+      '<div class="sr"><span>Fecha</span><b style="font-size:14px">'+esc(e.fecha||isoDateOf(e.ts))+'</b></div>'+
+      '<div class="sr"><span>Duración</span><b>'+fmtDur(e.durSeg)+'</b></div></div>'+
+    body +
+    '<button class="btn-primary danger" onclick="deleteEntreno(\''+esc(e.id)+'\')">Borrar entrenamiento</button>';
+}
+function ritmo(e){
+  var km=Number(e.km)||0, sec=Number(e.durSeg)||0; if(!km) return '—';
+  var spk=sec/km; return Math.floor(spk/60)+':'+pad2(Math.round(spk%60))+' /km';
+}
+function deleteEntreno(id){
+  if(!window.confirm('¿Borrar este entrenamiento? No se puede deshacer.')) return;
+  bk('delEntreno', {id:id});
+  backFromDetail();
 }
 
 /* ===================================================================
