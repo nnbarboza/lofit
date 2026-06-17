@@ -467,6 +467,11 @@ img{display:block}
 .recrow .rv{font-family:'Inter';font-weight:800;font-size:16px;color:var(--red);white-space:nowrap}
 
 .trendlist{padding:6px 16px 0}
+.dualleg{display:flex;gap:18px;padding:8px 18px 0;font-size:12px;color:var(--mut)}
+.dualleg span{display:inline-flex;align-items:center;gap:6px}
+.dualleg .ld{width:10px;height:3px;border-radius:2px;display:inline-block}
+.okdot{width:22px;height:22px;border-radius:50%;background:rgba(62,196,109,.15);color:var(--green);
+  display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;flex:none}
 .trow{display:flex;align-items:center;gap:12px;padding:14px 2px;border-bottom:1px solid var(--line)}
 .trow .tdot{font-size:13px}
 .trow .tm{flex:1;font-weight:600}
@@ -572,7 +577,7 @@ img{display:block}
    v0.1.0
    Arquitectura: index.html (GitHub Pages) + Apps Script /exec + Sheets
    =================================================================== */
-var VERSION = 'v0.7.0';
+var VERSION = 'v0.8.0';
 var BACKEND_URL = 'https://script.google.com/macros/s/AKfycbxHAlVHfjwy81evBc1ciFfkXYVvpWIg_ifnOonaaMvVuxxedl59pIiBkS47GIW7HNYj/exec';
 
 /* ---------- categorías ---------- */
@@ -729,6 +734,8 @@ function rebuildFromServer(data){
   if(data.frases && data.frases.length)         state.frases = data.frases;
   if(data.frasesFin && data.frasesFin.length)   state.frasesFin = data.frasesFin;
   if(data.config)     state.config     = data.config;
+  if(data.medidas)    state.medidas    = data.medidas;
+  if(data.equipamiento) state.equipamiento = data.equipamiento;
   state.activeRutina = data.activeRutina || pickActive(state.rutinas);
   state.activeRutinaId = data.activeRutinaId || state.activeRutinaId;
   // re-aplica la cola pendiente encima
@@ -853,11 +860,31 @@ function seedState(){
     entrenos.push({id:eid, ts:ts, cat:'muscle', rutinaId:'r_epic', titulo:'Sesión '+combo.join('/'), dia:'', durSeg:(55+((15-k)%3)*6)*60, volumen:vol});
     sid++;
   }
+  // ---- HISTÓRICO ABS (progresión: peso en crunch, segundos en plancha, reps en el resto) ----
+  var absNm={ea1:'Crunch',ea2:'Elevación de piernas',ea3:'Plancha',ea4:'Russian twist',ea5:'Mountain climbers'};
+  var absRot=[['ea1','ea3','ea4'],['ea2','ea3','ea5'],['ea1','ea2','ea4']];
+  var absBase={ea1:{p:10,r:15},ea2:{p:0,r:10},ea3:{p:0,r:40},ea4:{p:8,r:16},ea5:{p:0,r:20}};
+  var absInc ={ea1:{p:0.7,r:0},ea2:{p:0,r:0.7},ea3:{p:0,r:6},ea4:{p:0.5,r:0},ea5:{p:0,r:1.2}};
+  for(var ka=12;ka>=1;ka--){
+    var tsa=now.getTime()-ka*11*dayMs, eida='ha'+ka, comboa=absRot[(12-ka)%absRot.length];
+    comboa.forEach(function(ex){
+      var pe=Math.round((absBase[ex].p+absInc[ex].p*(12-ka))*2)/2;
+      var re=Math.round(absBase[ex].r+absInc[ex].r*(12-ka));
+      for(var s=0;s<3;s++){
+        series.push({id:'ha'+ka+'_'+ex+'_'+s, entrenoId:eida, ejercicioId:ex, ejercicio:absNm[ex], serie:s+1, reps:re, peso:pe, ts:tsa});
+      }
+    });
+    entrenos.push({id:eida, ts:tsa, cat:'abs', rutinaId:'r_abs', titulo:'Core '+comboa.join('/'), dia:'', durSeg:(26+((12-ka)%3)*3)*60, volumen:0});
+  }
+  // ---- MEDICIONES (cintura baja, peso baja, grasa baja: el objetivo real) ----
+  var medidas=[];
+  [['Cintura',[88,87,86,85,84,83]],['Peso corporal',[75,74.2,73.6,73,72.7,72.4]],['Grasa corporal',[19,18.3,17.6,17,16.6,16.2]]]
+    .forEach(function(p){ p[1].forEach(function(v,i){ medidas.push({id:'m_'+p[0].slice(0,3).toLowerCase()+i, ts:now.getTime()-(5-i)*30*dayMs, parte:p[0], valor:v}); }); });
   return {
     rutinas:[{id:'r_epic', nombre:'EPIC SUMMER', tipo:'muscle', activa:true},
              {id:'r_abs', nombre:'CORE EVERYDAY', tipo:'abs', activa:true}],
     activeRutina:'EPIC SUMMER', activeRutinaId:'r_epic',
-    dias:dias, ejercicios:ejercicios, entrenos:entrenos, series:series,
+    dias:dias, ejercicios:ejercicios, entrenos:entrenos, series:series, medidas:medidas,
     config:{ descansoSeg:120, goalFuerza:4, unidad:'kg' },
     frases:[
       '¿Qué van a entrenar hoy|Tigre?',
@@ -1835,23 +1862,38 @@ function musColor(m){ var ms=muscles(); var i=ms.indexOf(m); return MUS_PALETTE[
 
 function musOf(exId){ var e=exById(exId); return e&&e.musculo ? e.musculo : '—'; }
 function entrenoById(id){ var a=state.entrenos||[]; for(var i=0;i<a.length;i++) if(String(a[i].id)===String(id)) return a[i]; return null; }
-function muscles(){ var m={}; (state.series||[]).forEach(function(s){ m[musOf(s.ejercicioId)]=1; }); return Object.keys(m).sort(); }
+
+/* contexto de stats: muscle o abs. Las stats solo miran series de su categoría. */
+var statsCat = 'muscle';
+var _ecMap={ver:-1,m:{}};
+function entCat(id){
+  if(_ecMap.ver!==dataRev){ _ecMap={ver:dataRev,m:{}}; (state.entrenos||[]).forEach(function(e){ _ecMap.m[String(e.id)]=e.cat; }); }
+  return _ecMap.m[String(id)] || 'muscle';
+}
+var _scx={ver:-1,cat:'',arr:null};
+function seriesCtx(){
+  if(_scx.ver!==dataRev || _scx.cat!==statsCat){
+    _scx={ver:dataRev,cat:statsCat,arr:(state.series||[]).filter(function(s){ return entCat(s.entrenoId)===statsCat; })};
+  }
+  return _scx.arr;
+}
+function muscles(){ var m={}; seriesCtx().forEach(function(s){ m[musOf(s.ejercicioId)]=1; }); return Object.keys(m).sort(); }
 function exercisesWithData(){
-  var ids={}; (state.series||[]).forEach(function(s){ ids[s.ejercicioId]=1; });
+  var ids={}; seriesCtx().forEach(function(s){ ids[s.ejercicioId]=1; });
   return Object.keys(ids).map(function(id){ return exById(id)||{id:id,ejercicio:id,musculo:'—'}; })
     .sort(function(a,b){ return String(a.ejercicio).localeCompare(String(b.ejercicio)); });
 }
 function exName(exId){ var e=exById(exId); return e?e.ejercicio:exId; }
 function fmtFecha(ts){ var d=new Date(ts); return d.getDate()+' '+MES[d.getMonth()]+' '+d.getFullYear(); }
-/* caché de stats: se invalida sola cuando cambian los datos (dataRev) */
-var _memoVer=-1, _sfxCache={}, _wvCache={};
-function memoReset_(){ if(_memoVer!==dataRev){ _memoVer=dataRev; _sfxCache={}; _wvCache={}; } }
+/* caché de stats: se invalida sola cuando cambian los datos (dataRev) o la categoría */
+var _memoVer=-1, _memoCat='', _sfxCache={}, _wvCache={};
+function memoReset_(){ if(_memoVer!==dataRev || _memoCat!==statsCat){ _memoVer=dataRev; _memoCat=statsCat; _sfxCache={}; _wvCache={}; } }
 
 /* sesiones (agrupadas por entreno) de un ejercicio, asc por fecha */
 function sessionsForEx(exId){
   memoReset_(); if(_sfxCache[exId]) return _sfxCache[exId];
   var by={};
-  (state.series||[]).forEach(function(s){
+  seriesCtx().forEach(function(s){
     if(String(s.ejercicioId)!==String(exId)) return;
     var k=s.entrenoId;
     if(!by[k]) by[k]={entrenoId:k, ts:0, sets:[], vol:0, maxPeso:0};
@@ -1870,7 +1912,7 @@ function winVol(from,to,musFilter,exFilter){
   var key=from+'|'+to+'|'+(musFilter||'')+'|'+(exFilter||'');
   if(key in _wvCache) return _wvCache[key];
   var v=0;
-  (state.series||[]).forEach(function(s){
+  seriesCtx().forEach(function(s){
     var t=Number(s.ts)||0; if(t<from||t>=to) return;
     if(musFilter && musOf(s.ejercicioId)!==musFilter) return;
     if(exFilter && String(s.ejercicioId)!==String(exFilter)) return;
@@ -1940,12 +1982,14 @@ function svgSpark(vals,color){
 function statsScat(active){
   return '<div class="scat">'+CATS.map(function(c){
     var on=(c.id===active);
-    return '<button class="scchip'+(on?' on':'')+'" style="'+(on?'border-color:'+c.color+';color:'+c.color:'')+'" onclick="'+(c.id==='muscle'?'renderStatsHome()':'statsSoon(\''+c.id+'\')')+'">'+esc(c.label)+'</button>';
+    var act = c.id==='muscle' ? 'renderStatsHome()' : (c.id==='abs' ? 'renderAbsHome()' : 'statsSoon(\''+c.id+'\')');
+    return '<button class="scchip'+(on?' on':'')+'" style="'+(on?'border-color:'+c.color+';color:'+c.color:'')+'" onclick="'+act+'">'+esc(c.label)+'</button>';
   }).join('')+'</div>';
 }
 function statsSoon(cat){ alert((CATMAP[cat]?CATMAP[cat].label:cat)+': stats específicas próximamente.'); }
 
 function renderStatsHome(){
+  statsCat='muscle';
   var now=Date.now();
   var v30=winVol(now-30*DAYMS,now), vPrev=winVol(now-60*DAYMS,now-30*DAYMS);
   var pct=pctChange(v30,vPrev);
@@ -1953,7 +1997,7 @@ function renderStatsHome(){
   var planned=Math.round(CATMAP.muscle.goal*30/7);
   var cump=planned?Math.round(entr.length/planned*100):0;
   var durs=entr.map(function(e){return (+e.durSeg||0)/60;}); var avg=durs.length?Math.round(durs.reduce(function(a,b){return a+b;},0)/durs.length):0;
-  var byM={}; (state.series||[]).forEach(function(s){var t=+s.ts||0; if(t>=now-30*DAYMS){var m=musOf(s.ejercicioId);byM[m]=(byM[m]||0)+(+s.peso||0)*(+s.reps||0);}});
+  var byM={}; seriesCtx().forEach(function(s){var t=+s.ts||0; if(t>=now-30*DAYMS){var m=musOf(s.ejercicioId);byM[m]=(byM[m]||0)+(+s.peso||0)*(+s.reps||0);}});
   var topMus='—',topV=-1; for(var m in byM){ if(byM[m]>topV){topV=byM[m];topMus=m;} }
 
   document.getElementById('screen-progreso').innerHTML =
@@ -1996,7 +2040,9 @@ function statsHeader(title, onback){
 }
 
 /* --- Ejercicios --- */
+var exBack='renderExList()';
 function renderExList(){
+  statsCat='muscle'; exBack='renderExList()';
   var exs=exercisesWithData();
   var rows=exs.map(function(e){
     var ss=sessionsForEx(e.id); var last=ss.length?ss[ss.length-1]:null;
@@ -2027,7 +2073,7 @@ function renderExStats(exId, metric){
   }).join('');
 
   document.getElementById('screen-progreso').innerHTML =
-    statsHeader(ex.ejercicio,'renderExList()')+
+    statsHeader(ex.ejercicio, exBack)+
     '<div class="exsub" style="color:var(--red)">'+esc(ex.musculo||'—')+'</div>'+
     '<div class="kpi3">'+
       kpiS('Peso máximo', fmtW(maxPeso)+' kg')+
@@ -2045,6 +2091,7 @@ function tgl(label,metric,exId){ return '<button class="tg'+(exMetric===metric?'
 
 /* --- Músculos --- */
 function renderMusList(){
+  statsCat='muscle';
   var now=Date.now();
   var rows=muscles().map(function(m){
     var v=winVol(now-30*DAYMS,now,m), p=pctChange(v, winVol(now-60*DAYMS,now-30*DAYMS,m));
@@ -2057,11 +2104,12 @@ function renderMusList(){
     '<div class="list">'+(rows||'<div class="empty">Sin datos.</div>')+'</div>';
 }
 function renderMusStats(mus){
+  statsCat='muscle';
   var now=Date.now();
   var v30=winVol(now-30*DAYMS,now,mus), pPrev=winVol(now-60*DAYMS,now-30*DAYMS,mus), pct=pctChange(v30,pPrev);
   var months=lastMonths(6).map(function(mo){ return {label:mo.label, v:winVol(mo.from,mo.to,mus)}; });
   var from=now-90*DAYMS, byEx={};
-  (state.series||[]).forEach(function(s){ var t=+s.ts||0; if(t<from) return; if(musOf(s.ejercicioId)!==mus) return;
+  seriesCtx().forEach(function(s){ var t=+s.ts||0; if(t<from) return; if(musOf(s.ejercicioId)!==mus) return;
     byEx[s.ejercicioId]=(byEx[s.ejercicioId]||0)+(+s.peso||0)*(+s.reps||0); });
   var tot=0; for(var k in byEx) tot+=byEx[k];
   var aport=Object.keys(byEx).map(function(id){ return {id:id, v:byEx[id]}; }).sort(function(a,b){return b.v-a.v;}).slice(0,6);
@@ -2088,11 +2136,12 @@ function renderMusStats(mus){
 
 /* --- Records --- */
 function renderRecords(tab){
+  statsCat='muscle';
   tab=tab||'ex';
   var body;
   if(tab==='ex'){
     var pmax={}, vmax={};
-    (state.series||[]).forEach(function(s){ var p=+s.peso||0; if(!pmax[s.ejercicioId]||p>pmax[s.ejercicioId].peso) pmax[s.ejercicioId]={peso:p,ts:+s.ts||0}; });
+    seriesCtx().forEach(function(s){ var p=+s.peso||0; if(!pmax[s.ejercicioId]||p>pmax[s.ejercicioId].peso) pmax[s.ejercicioId]={peso:p,ts:+s.ts||0}; });
     exercisesWithData().forEach(function(e){ var ss=sessionsForEx(e.id); var bv=0,bts=0; ss.forEach(function(o){ if(o.vol>bv){bv=o.vol;bts=o.ts;} }); vmax[e.id]={vol:bv,ts:bts}; });
     var pl=Object.keys(pmax).map(function(id){return {id:id,v:pmax[id].peso,ts:pmax[id].ts};}).sort(function(a,b){return b.v-a.v;}).slice(0,5);
     var vl=Object.keys(vmax).map(function(id){return {id:id,v:vmax[id].vol,ts:vmax[id].ts};}).sort(function(a,b){return b.v-a.v;}).slice(0,5);
@@ -2102,7 +2151,7 @@ function renderRecords(tab){
       vl.map(function(r,i){return recRow(i+1, exName(r.id), fmtMiles(r.v)+' kg', fmtFecha(r.ts));}).join('')+'</div>';
   } else {
     var wk={}, mo={};
-    (state.series||[]).forEach(function(s){
+    seriesCtx().forEach(function(s){
       var m=musOf(s.ejercicioId), d=new Date(+s.ts||0), vol=(+s.peso||0)*(+s.reps||0);
       var wkKey=m+'|'+isoWeek(d)+'|'+d.getFullYear(); wk[wkKey]=(wk[wkKey]||0)+vol;
       var moKey=m+'|'+d.getMonth()+'|'+d.getFullYear(); mo[moKey]=(mo[moKey]||0)+vol;
@@ -2130,6 +2179,7 @@ function recRow(n,name,val,sub){
 
 /* --- Tendencias --- */
 function renderTendencias(){
+  statsCat='muscle';
   var now=Date.now();
   var rows=muscles().map(function(m){
     var cur=winVol(now-30*DAYMS,now,m), prev=winVol(now-60*DAYMS,now-30*DAYMS,m), p=pctChange(cur,prev);
@@ -2144,6 +2194,192 @@ function renderTendencias(){
     statsHeader('Tendencias','statsBack()')+
     '<div class="exsub">últimos 30 días vs 30 anteriores</div>'+
     '<div class="trendlist">'+(list||'<div class="empty">Sin datos.</div>')+'</div>';
+}
+
+/* ===================================================================
+   STATS ABS — métricas propias (consistencia, tiempo, core score, cintura)
+   =================================================================== */
+function svgDualLine(labels, aVals, bVals, aColor, bColor){
+  function carry(arr){ var out=arr.slice(), last=null, i;
+    for(i=0;i<out.length;i++){ if(out[i]==null) out[i]=last; else last=out[i]; }
+    var first=null; for(i=0;i<out.length;i++){ if(out[i]!=null){first=out[i];break;} }
+    for(i=0;i<out.length;i++){ if(out[i]==null) out[i]=first; } return out; }
+  var A=carry(aVals), B=carry(bVals);
+  if(A[0]==null && B[0]==null) return '<div class="empty">Sin datos</div>';
+  var W=320,H=160,pl=28,pr=28,ptp=14,pb=22,xs=W-pl-pr,ys=H-ptp-pb,n=labels.length;
+  function scale(arr){ var v=arr.filter(function(x){return x!=null;}); var mx=Math.max.apply(null,v),mn=Math.min.apply(null,v); if(mx===mn){mx+=1;mn-=1;} return {mx:mx,mn:mn}; }
+  var sa=scale(A), sb=scale(B);
+  function X(i){ return pl+(n===1?xs/2:xs*i/(n-1)); }
+  function YA(v){ return ptp+ys*(1-(v-sa.mn)/(sa.mx-sa.mn)); }
+  function YB(v){ return ptp+ys*(1-(v-sb.mn)/(sb.mx-sb.mn)); }
+  var la='<polyline points="'+A.map(function(v,i){return X(i)+','+YA(v);}).join(' ')+'" fill="none" stroke="'+aColor+'" stroke-width="2.5" stroke-linejoin="round"/>';
+  var lb='<polyline points="'+B.map(function(v,i){return X(i)+','+YB(v);}).join(' ')+'" fill="none" stroke="'+bColor+'" stroke-width="2.5" stroke-linejoin="round"/>';
+  var da=A.map(function(v,i){return '<circle cx="'+X(i)+'" cy="'+YA(v)+'" r="2.5" fill="'+aColor+'"/>';}).join('');
+  var db=B.map(function(v,i){return '<circle cx="'+X(i)+'" cy="'+YB(v)+'" r="2.5" fill="'+bColor+'"/>';}).join('');
+  var ax='<text x="'+(pl-3)+'" y="'+(YA(sa.mx)+3)+'" class="axt" text-anchor="end" fill="'+aColor+'">'+fmtNum(sa.mx)+'</text>'+
+         '<text x="'+(pl-3)+'" y="'+(YA(sa.mn)+3)+'" class="axt" text-anchor="end" fill="'+aColor+'">'+fmtNum(sa.mn)+'</text>'+
+         '<text x="'+(W-pr+3)+'" y="'+(YB(sb.mx)+3)+'" class="axt" text-anchor="start" fill="'+bColor+'">'+fmtNum(sb.mx)+'</text>'+
+         '<text x="'+(W-pr+3)+'" y="'+(YB(sb.mn)+3)+'" class="axt" text-anchor="start" fill="'+bColor+'">'+fmtNum(sb.mn)+'</text>';
+  var xl='';[0,Math.floor((n-1)/2),n-1].forEach(function(i,k){ if(i<0||i>=n)return; if(k===1&&(i===0||i===n-1))return;
+    xl+='<text x="'+X(i)+'" y="'+(H-6)+'" class="axt" text-anchor="middle">'+esc(labels[i])+'</text>'; });
+  return '<svg viewBox="0 0 '+W+' '+H+'" class="chart">'+ax+la+lb+da+db+xl+'</svg>';
+}
+
+/* --- helpers abs (statsCat debe estar en 'abs') --- */
+function absUnit(exId){
+  var weighted=false; seriesCtx().forEach(function(s){ if(String(s.ejercicioId)===String(exId)&&(+s.peso>0)) weighted=true; });
+  if(weighted) return 'kg';
+  var nm=String((exById(exId)||{}).ejercicio||'').toLowerCase();
+  if(/planc|plank|isom|hollow|vacuum|hold/.test(nm)) return 'seg';
+  return 'reps';
+}
+function absTipo(u){ return u==='kg'?'Fuerza':u==='seg'?'Estabilidad':'Resistencia'; }
+function absTipoColor(u){ return u==='kg'?'var(--red)':u==='seg'?'var(--green)':'var(--orange)'; }
+function fmtSet(u,peso,reps){ if(u==='kg') return fmtW(peso)+' kg × '+reps+' reps'; if(u==='seg') return reps+' seg'; return reps+' reps'; }
+function effort(peso,reps){ return (+peso>0)?(+peso)*(+reps):(+reps); }
+function absEffortBest(exId, from, to){
+  var b=0; seriesCtx().forEach(function(s){ if(String(s.ejercicioId)!==String(exId))return; var t=+s.ts||0;
+    if(from!=null&&(t<from||t>=to))return; var e=effort(s.peso,s.reps); if(e>b)b=e; }); return b;
+}
+function absAllBest(exId){ var best=null; seriesCtx().forEach(function(s){ if(String(s.ejercicioId)!==String(exId))return;
+  var e=effort(s.peso,s.reps); if(!best||e>best.e)best={e:e,peso:+s.peso,reps:+s.reps,ts:+s.ts}; }); return best; }
+function absLastSet(exId){ var ss=sessionsForEx(exId); if(!ss.length)return null; var o=ss[ss.length-1],best=null;
+  o.sets.forEach(function(s){ var e=effort(s.peso,s.reps); if(!best||e>best.e)best={e:e,peso:s.peso,reps:s.reps}; }); best.ts=o.ts; return best; }
+function coreScore(from,to){
+  var exs=exercisesWithData(), sum=0,n=0;
+  exs.forEach(function(e){ var allt=absEffortBest(e.id,null,null); if(!allt)return; var per=absEffortBest(e.id,from,to); if(per<=0)return; sum+=Math.min(1,per/allt); n++; });
+  return n?Math.round(sum/n*100):0;
+}
+/* medidas corporales */
+function medNorm(s){ return String(s||'').toLowerCase().trim(); }
+function medidasOf(parte){
+  var p=medNorm(parte);
+  return (state.medidas||[]).filter(function(m){ return medNorm(m.parte)===p; })
+    .map(function(m){ var ts=+m.ts; if(!ts){ ts=Date.parse(m.ts)||0; } return {ts:ts, valor:parseFloat(String(m.valor).replace(',','.'))||0}; })
+    .filter(function(x){return x.ts;}).sort(function(a,b){return a.ts-b.ts;});
+}
+function medLatest(parte){ var a=medidasOf(parte); return a.length?a[a.length-1]:null; }
+function medDelta(parte,days){ var a=medidasOf(parte); if(!a.length)return null; var last=a[a.length-1], cutoff=last.ts-days*DAYMS, prev=null;
+  for(var i=a.length-1;i>=0;i--){ if(a[i].ts<=cutoff){prev=a[i];break;} } if(!prev)prev=a[0];
+  return {last:last.valor, prev:prev.valor, diff:Math.round((last.valor-prev.valor)*10)/10}; }
+function medMonthly(parte,n){ var a=medidasOf(parte); return lastMonths(n).map(function(mo){ var v=null; a.forEach(function(x){ if(x.ts<mo.to)v=x.valor; }); return v; }); }
+
+function renderAbsHome(){
+  statsCat='abs';
+  var now=Date.now();
+  var es=(state.entrenos||[]).filter(function(e){return e.cat==='abs';});
+  var s30=es.filter(function(e){return (+e.ts)>=now-30*DAYMS;});
+  var sPrev=es.filter(function(e){return (+e.ts)>=now-60*DAYMS&&(+e.ts)<now-30*DAYMS;});
+  var planned=Math.round(CATMAP.abs.goal*30/7);
+  var cump=planned?Math.round(s30.length/planned*100):0;
+  var t30=Math.round(s30.reduce(function(a,e){return a+(+e.durSeg||0);},0)/60);
+  var tPrev=Math.round(sPrev.reduce(function(a,e){return a+(+e.durSeg||0);},0)/60);
+  var dt=t30-tPrev;
+  var core=coreScore(now-30*DAYMS,now), corePrev=coreScore(now-60*DAYMS,now-30*DAYMS);
+  var coreD=pctChange(core,corePrev);
+  var cd=medDelta('Cintura',30); var cint=medLatest('Cintura');
+  // distribución por zona (nº de series por músculo abdominal, 30 días)
+  var byZ={}; seriesCtx().forEach(function(s){ if((+s.ts)<now-30*DAYMS)return; var m=musOf(s.ejercicioId); byZ[m]=(byZ[m]||0)+1; });
+  var segColors=['#27a39c','#5ec46d','#7b8cde','#e89a2c','#c45ec4'];
+  var zsegs=Object.keys(byZ).map(function(m,i){return {label:m, v:byZ[m], color:segColors[i%segColors.length]};});
+  var ztot=zsegs.reduce(function(a,s){return a+s.v;},0);
+  var zleg=zsegs.map(function(s){return '<div class="lgd"><span class="ld" style="background:'+s.color+'"></span><span class="ln">'+esc(s.label)+'</span><span class="lp">'+(ztot?Math.round(s.v/ztot*100):0)+'%</span></div>';}).join('');
+
+  var sesBadge='<span class="kbadge" style="color:'+(cump>=100?'var(--green)':'var(--tan)')+'">'+cump+'%</span>';
+  var tBadge=dt? '<span class="kbadge" style="color:'+(dt>0?'var(--green)':'var(--red)')+'">'+(dt>0?'↑':'↓')+' '+Math.abs(dt)+' min</span>':'';
+  var cinBadge=cd? '<span class="kbadge" style="color:'+(cd.diff<0?'var(--green)':cd.diff>0?'var(--red)':'var(--tan)')+'">'+(cd.diff<0?'↓':cd.diff>0?'↑':'→')+' '+Math.abs(cd.diff)+' cm</span>':'';
+
+  document.getElementById('screen-progreso').innerHTML =
+    '<div class="stats-hd"><h1 class="bebas" style="font-size:40px;line-height:.9">STATS</h1>'+
+      '<div class="stats-sub">Abdomen & Core</div></div>'+
+    statsScat('abs')+
+    '<div class="sec-head"><span class="t">Resumen general</span><span class="more" style="color:var(--mut)">últimos 30 días</span></div>'+
+    '<div class="kpi-grid">'+
+      kpi('Sesiones', s30.length+'<span class="u">/'+planned+'</span>', sesBadge)+
+      kpi('Tiempo acumulado', t30+'<span class="u">min</span>', tBadge)+
+      kpi('Core Score', core+'<span class="u">/100</span>', pctBadge(coreD))+
+      kpi('Cintura', (cint?fmtW(cint.valor)+'<span class="u">cm</span>':'—'), cinBadge)+
+    '</div>'+
+    (zsegs.length?('<div class="sec-head"><span class="t">Distribución del trabajo</span><span class="more" style="color:var(--mut)">30 días</span></div>'+
+      '<div class="aportcard"><div class="don">'+svgDonut(zsegs)+'</div><div class="leg">'+zleg+'</div></div>'):'')+
+    '<div class="navlist">'+
+      statNavIc('💪','Ejercicios','Progresión de los que sí importan','renderAbsExList()')+
+      statNavIc('📈','Evolución','Core Score vs cintura','renderAbsEvol(6)')+
+      statNavIc('📅','Sesiones','Tus entrenos de core','renderAbsSesiones()')+
+      statNavIc('📏','Mediciones','Cintura, peso y grasa','renderAbsMediciones()')+
+    '</div>';
+}
+function statNavIc(ic,t,sub,onclick){
+  return '<button class="navrow" onclick="'+onclick+'"><span class="nr-ic">'+ic+'</span>'+
+    '<span class="nr-t"><b>'+esc(t)+'</b><small>'+esc(sub)+'</small></span><span class="nr-ch">›</span></button>';
+}
+function absBack(){ renderAbsHome(); }
+
+function renderAbsExList(){
+  statsCat='abs'; exBack='renderAbsExList()';
+  var now=Date.now();
+  var rows=exercisesWithData().map(function(e){
+    var u=absUnit(e.id), last=absLastSet(e.id), p=pctChange(absEffortBest(e.id,now-30*DAYMS,now), absEffortBest(e.id,now-60*DAYMS,now-30*DAYMS));
+    var months=lastMonths(6).map(function(mo){return absEffortBest(e.id,mo.from,mo.to);}).filter(function(x){return x>0;});
+    return '<button class="li" onclick="renderExStats(\''+esc(e.id)+'\')"><div class="mid">'+
+      '<div class="ti">'+esc(e.ejercicio)+'</div>'+
+      '<div class="cat" style="color:'+absTipoColor(u)+'">'+absTipo(u)+'<span class="rtag" style="color:var(--mut)">'+(last?fmtSet(u,last.peso,last.reps):'—')+'</span></div></div>'+
+      '<div class="right"><span class="dur" style="color:'+trendColor(p)+'">'+trendArrow(p)+' '+Math.abs(p)+'%</span><br>'+svgSpark(months,trendColor(p))+'</div>'+
+      '<span class="chev">›</span></button>';
+  }).join('');
+  document.getElementById('screen-progreso').innerHTML =
+    statsHeader('Ejercicios','absBack()')+
+    '<div class="exsub">progreso vs 30 días anteriores</div>'+
+    '<div class="list">'+(rows||'<div class="empty">Sin datos de core todavía.</div>')+'</div>';
+}
+
+function renderAbsEvol(n){
+  statsCat='abs'; n=n||6;
+  var months=lastMonths(n);
+  var labels=months.map(function(m){return m.label;});
+  var coreVals=months.map(function(m){ var c=coreScore(m.from,m.to); return c||null; });
+  var cintVals=medMonthly('Cintura',n);
+  var rng=[3,6,12].map(function(k){return '<button class="tg'+(n===k?' on':'')+'" onclick="renderAbsEvol('+k+')">'+(k===12?'1A':k+'M')+'</button>';}).join('');
+  document.getElementById('screen-progreso').innerHTML =
+    statsHeader('Evolución','absBack()')+
+    '<div class="dualleg"><span><span class="ld" style="background:var(--red)"></span>Core Score</span>'+
+      '<span><span class="ld" style="background:var(--green)"></span>Cintura (cm)</span></div>'+
+    '<div class="chartcard">'+svgDualLine(labels, coreVals, cintVals, 'var(--red)', 'var(--green)')+'</div>'+
+    '<div class="toggle" style="padding-top:12px">'+rng+'</div>'+
+    '<div class="objnote">Si en 3 meses tu Core Score sube pero la cintura no baja, el espejo no cambia. La cintura manda.</div>';
+}
+
+function renderAbsSesiones(){
+  statsCat='abs';
+  var es=(state.entrenos||[]).filter(function(e){return e.cat==='abs';}).sort(function(a,b){return b.ts-a.ts;});
+  var rows=es.map(function(e){
+    return '<button class="li" onclick="openEntreno(\''+esc(e.id)+'\')"><span class="okdot">✓</span>'+
+      '<div class="mid"><div class="ti">'+esc(entrenoTitle(e))+'</div><div class="cat" style="color:var(--mut)">'+fmtFecha(e.ts)+'</div></div>'+
+      '<div class="right">'+fmtDur(e.durSeg)+'</div><span class="chev">›</span></button>';
+  }).join('');
+  document.getElementById('screen-progreso').innerHTML =
+    statsHeader('Sesiones','absBack()')+
+    '<div class="list">'+(rows||'<div class="empty">Sin sesiones de core.</div>')+'</div>';
+}
+
+function renderAbsMediciones(){
+  statsCat='abs';
+  var partes=[['Cintura','cm'],['Peso corporal','kg'],['Grasa corporal','%']];
+  var blocks=partes.map(function(p){
+    var serie=medidasOf(p[0]); if(!serie.length) return '';
+    var last=serie[serie.length-1], d=medDelta(p[0],30);
+    var pts=serie.slice(-8).map(function(x){ return {label:MES[new Date(x.ts).getMonth()], v:x.valor}; });
+    var down=d&&d.diff<0;
+    var col=(p[0]==='Cintura'||p[0]==='Grasa corporal')?(down?'var(--green)':'var(--red)'):'var(--teal)';
+    return '<div class="sec-head"><span class="t">'+esc(p[0])+'</span>'+
+        (d?'<span class="more" style="color:'+col+'">'+(d.diff<0?'↓':d.diff>0?'↑':'→')+' '+Math.abs(d.diff)+' '+p[1]+'</span>':'')+'</div>'+
+      '<div class="muscard"><div class="kv" style="font-size:28px">'+fmtW(last.valor)+'<span class="u">'+p[1]+'</span></div>'+
+        '<div class="tobj">último: '+fmtFecha(last.ts)+'</div></div>'+
+      '<div class="chartcard">'+svgLine(pts, col)+'</div>';
+  }).join('');
+  document.getElementById('screen-progreso').innerHTML =
+    statsHeader('Mediciones','absBack()')+
+    (blocks||'<div class="empty">Aún no hay mediciones. Regístralas en la hoja <b>Medidas</b> (parte/valor).</div>');
 }
 
 function boot(){
