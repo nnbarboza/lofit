@@ -572,7 +572,7 @@ img{display:block}
    v0.1.0
    Arquitectura: index.html (GitHub Pages) + Apps Script /exec + Sheets
    =================================================================== */
-var VERSION = 'v0.6.0';
+var VERSION = 'v0.7.0';
 var BACKEND_URL = 'https://script.google.com/macros/s/AKfycbxHAlVHfjwy81evBc1ciFfkXYVvpWIg_ifnOonaaMvVuxxedl59pIiBkS47GIW7HNYj/exec';
 
 /* ---------- categorías ---------- */
@@ -667,7 +667,8 @@ function loadState(){
   try{ var s = JSON.parse(localStorage.getItem(LS_STATE)); if(s) return s; }catch(e){}
   return null;
 }
-function saveState(){ try{ localStorage.setItem(LS_STATE, JSON.stringify(state)); }catch(e){} }
+var dataRev = 0;
+function saveState(){ dataRev++; try{ localStorage.setItem(LS_STATE, JSON.stringify(state)); }catch(e){} }
 function getOutbox(){ try{ return JSON.parse(localStorage.getItem(LS_OUTBOX))||[]; }catch(e){ return []; } }
 function setOutbox(o){ try{ localStorage.setItem(LS_OUTBOX, JSON.stringify(o)); }catch(e){} }
 
@@ -779,7 +780,12 @@ function seedState(){
     {id:'e8', ejercicio:'Jalón al pecho',            musculo:'Espalda', equipamiento:'Polea',          enlace:'', video:'', imagen:''},
     {id:'e9', ejercicio:'Fondos en paralelas',       musculo:'Tríceps', equipamiento:'Peso corporal',  enlace:'', video:'', imagen:''},
     {id:'e10',ejercicio:'Extensión tríceps polea',   musculo:'Tríceps', equipamiento:'Máquina',        enlace:'', video:'', imagen:''},
-    {id:'e11',ejercicio:'Prensa de piernas',         musculo:'Cuádriceps',equipamiento:'Máquina',      enlace:'', video:'', imagen:''}
+    {id:'e11',ejercicio:'Prensa de piernas',         musculo:'Cuádriceps',equipamiento:'Máquina',      enlace:'', video:'', imagen:''},
+    {id:'ea1',ejercicio:'Crunch',                    musculo:'Abdomen', equipamiento:'Peso corporal',  enlace:'', video:'', imagen:''},
+    {id:'ea2',ejercicio:'Elevación de piernas',      musculo:'Abdomen', equipamiento:'Peso corporal',  enlace:'', video:'', imagen:''},
+    {id:'ea3',ejercicio:'Plancha',                   musculo:'Core',    equipamiento:'Peso corporal',  enlace:'', video:'', imagen:''},
+    {id:'ea4',ejercicio:'Russian twist',             musculo:'Oblicuos',equipamiento:'Mancuernas',     enlace:'', video:'', imagen:''},
+    {id:'ea5',ejercicio:'Mountain climbers',         musculo:'Core',    equipamiento:'Peso corporal',  enlace:'', video:'', imagen:''}
   ];
   // Dias: UNA FILA POR EJERCICIO, con su prescripción (series/reps/peso por día)
   var dayDefs = [
@@ -792,6 +798,15 @@ function seedState(){
   var dias = [];
   dayDefs.forEach(function(dd){ dd.ex.forEach(function(row,i){
     dias.push({id:'r_epic_'+dd.dia+'_'+row[0], rutinaId:'r_epic', dia:dd.dia, nombre:dd.nombre,
+      orden:i+1, ejercicioId:row[0], series:row[1], reps:row[2], peso:row[3], pesoObjetivo:row[4]});
+  }); });
+  // rutina ABS demo (tipo:'abs')
+  var absDefs = [
+    {dia:'A', nombre:'Core completo', ex:[['ea1',3,'20',0,0],['ea2',3,'15',0,0],['ea4',3,'20',0,0]]},
+    {dia:'B', nombre:'Abdomen + plancha', ex:[['ea1',3,'20',0,0],['ea3',3,'40',0,0],['ea5',3,'30',0,0]]}
+  ];
+  absDefs.forEach(function(dd){ dd.ex.forEach(function(row,i){
+    dias.push({id:'r_abs_'+dd.dia+'_'+row[0], rutinaId:'r_abs', dia:dd.dia, nombre:dd.nombre,
       orden:i+1, ejercicioId:row[0], series:row[1], reps:row[2], peso:row[3], pesoObjetivo:row[4]});
   }); });
   var entrenos = [
@@ -839,7 +854,8 @@ function seedState(){
     sid++;
   }
   return {
-    rutinas:[{id:'r_epic', nombre:'EPIC SUMMER', tipo:'muscle', activa:true}],
+    rutinas:[{id:'r_epic', nombre:'EPIC SUMMER', tipo:'muscle', activa:true},
+             {id:'r_abs', nombre:'CORE EVERYDAY', tipo:'abs', activa:true}],
     activeRutina:'EPIC SUMMER', activeRutinaId:'r_epic',
     dias:dias, ejercicios:ejercicios, entrenos:entrenos, series:series,
     config:{ descansoSeg:120, goalFuerza:4, unidad:'kg' },
@@ -1094,7 +1110,7 @@ function goScreen(id, navIdx){
   window.scrollTo(0,0);
 }
 function openCat(catId){
-  if(catId==='muscle'){ openMuscle(); return; }
+  if(catId==='muscle' || catId==='abs'){ openStrength(catId); return; }
   if(catId==='run' || catId==='bike'){ openCardio(catId); return; }
   renderCardScreen(catId);
   goScreen(catId, 0);
@@ -1115,13 +1131,19 @@ var LS_SESSION = 'lofit_session_v1';
 var tickHandle = null;
 
 function cfg(k, d){ return (state && state.config && state.config[k]!=null) ? state.config[k] : d; }
-function musRoutines(){ return (state.rutinas||[]).filter(function(r){ return (r.tipo||'muscle')==='muscle'; }); }
-function activeMusId(){
-  var r = musRoutines();
-  if(state.activeRutinaId){ for(var i=0;i<r.length;i++) if(String(r[i].id)===String(state.activeRutinaId)) return r[i].id; }
-  for(var j=0;j<r.length;j++) if(r[j].activa) return r[j].id;
-  return r[0] ? r[0].id : null;
+var selRid = {};   // rutina seleccionada por categoría (local)
+function routinesOfType(t){ return (state.rutinas||[]).filter(function(r){ return (r.tipo||'muscle')===t; }); }
+function routineById(id){ var a=state.rutinas||[]; for(var i=0;i<a.length;i++) if(String(a[i].id)===String(id)) return a[i]; return null; }
+function catOfRutina(id){ var r=routineById(id); return r?(r.tipo||'muscle'):'muscle'; }
+function activeRid(cat){
+  var rs=routinesOfType(cat);
+  if(selRid[cat]){ for(var i=0;i<rs.length;i++) if(String(rs[i].id)===String(selRid[cat])) return rs[i].id; }
+  if(cat==='muscle' && state.activeRutinaId){ for(var j=0;j<rs.length;j++) if(String(rs[j].id)===String(state.activeRutinaId)) return rs[j].id; }
+  for(var k=0;k<rs.length;k++) if(rs[k].activa) return rs[k].id;
+  return rs[0] ? rs[0].id : null;
 }
+function musRoutines(){ return routinesOfType('muscle'); }
+function activeMusId(){ return activeRid('muscle'); }
 /* Dias = una fila por ejercicio. Agrupamos en días, fusionando catálogo + prescripción. */
 function diasOf(rid){
   var rows = (state.dias||[]).filter(function(d){ return String(d.rutinaId)===String(rid); });
@@ -1235,23 +1257,27 @@ function bodySvg(musculo){
 }
 
 /* ---------- LANDING ---------- */
-function openMuscle(){ weekOffset=0; renderMuscleLanding(); goScreen('muscle', 0); }
-function setActiveMus(id){ bk('setActiveRutina', {id:id}); renderMuscleLanding(); }
+function openMuscle(){ openStrength('muscle'); }
+function openStrength(cat){ weekOffset=0; renderStrengthLanding(cat); goScreen(cat, 0); }
+function renderMuscleLanding(){ renderStrengthLanding('muscle'); }
+function setActiveMus(id){ setSelRoutine('muscle', id); }
+function setSelRoutine(cat, id){ selRid[cat]=id; if(cat==='muscle') bk('setActiveRutina', {id:id}); renderStrengthLanding(cat); }
 
-function renderMuscleLanding(){
-  var rid = activeMusId();
-  var rutinas = musRoutines();
-  var dias = diasOf(rid);
+function renderStrengthLanding(cat){
+  var C = CATMAP[cat] || CATMAP.muscle;
+  var rid = activeRid(cat);
+  var rutinas = routinesOfType(cat);
+  var dias = rid ? diasOf(rid) : [];
+  var wbId = cat==='muscle' ? 'weekbarM' : 'weekbar'+cat;
 
   var resume = '';
-  if(session){
-    var d = session.diaNombre || session.dia;
-    resume = '<button class="btn-primary green" style="margin:14px 16px 0" onclick="resumeSession()">▶ Reanudar: '+esc(session.dia+' - '+d)+'</button>';
+  if(session && (session.cat||'muscle')===cat){
+    var dn = session.diaNombre || session.dia;
+    resume = '<button class="btn-primary green" style="margin:14px 16px 0" onclick="resumeSession()">▶ Reanudar: '+esc(session.dia+' - '+dn)+'</button>';
   }
-
   var selOpts = rutinas.map(function(r){
     return '<option value="'+esc(r.id)+'"'+(String(r.id)===String(rid)?' selected':'')+'>'+esc(r.nombre)+'</option>';
-  }).join('');
+  }).join('') || '<option>—</option>';
 
   var dayCards = dias.length ? dias.map(function(d){
     var h = diaHistory(rid, d.dia);
@@ -1261,35 +1287,39 @@ function renderMuscleLanding(){
         '<div class="ds">'+(d.ejercicios||[]).length+' ejercicios</div>'+
         '<div class="dhist">'+histLabel(h)+'</div></span>'+
       '<span class="chev">›</span></button>';
-  }).join('') : '<div class="empty"><div class="big">Sin entrenos</div>Añade días a esta rutina en la hoja <b>Dias</b>.</div>';
+  }).join('') : '<div class="empty"><div class="big">Sin entrenos</div>Crea una rutina de tipo <b>'+esc(cat)+'</b> y añade días en la hoja <b>Dias</b>.</div>';
 
-  var ult = entrenosByCat('muscle').sort(function(a,b){return b.ts-a.ts;}).slice(0,5);
+  var ult = entrenosByCat(cat).sort(function(a,b){return b.ts-a.ts;}).slice(0,5);
+  var ultLbl = cat==='muscle' ? 'Últimos de fuerza' : 'Últimos de '+C.label.toLowerCase();
 
-  document.getElementById('screen-muscle').innerHTML =
+  document.getElementById('screen-'+cat).innerHTML =
     '<div class="scr-head" style="position:relative">'+
       '<button class="back" onclick="goScreen(\'home\',0)"><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg></button>'+
-      '<h2 class="bebas" style="font-size:34px">MUSCLE</h2>'+
+      '<h2 class="bebas" style="font-size:34px;color:'+C.color+'">'+esc(C.label)+'</h2>'+
     '</div>'+
     '<div class="rutina-sel"><span class="eyebrow">Rutina actual</span>'+
-      '<span class="selwrap"><select onchange="setActiveMus(this.value)">'+selOpts+'</select></span></div>'+
+      '<span class="selwrap"><select onchange="setSelRoutine(\''+cat+'\',this.value)">'+selOpts+'</select></span></div>'+
     resume+
     '<div class="sec-head"><span class="t">Elige tu entreno</span></div>'+
     '<div class="daylist">'+dayCards+'</div>'+
-    '<div class="weekbar" id="weekbarM" style="margin-top:6px"></div>'+
-    '<div class="sec-head"><span class="t">Últimos de fuerza</span>'+
+    '<div class="weekbar" id="'+wbId+'" style="margin-top:6px"></div>'+
+    '<div class="sec-head"><span class="t">'+ultLbl+'</span>'+
       '<button class="more" onclick="goScreen(\'historial\',2)">Ver todos</button></div>'+
-    '<div class="list" id="ultimosM"></div>';
+    '<div class="list" id="ult_'+cat+'"></div>';
 
-  renderWeekBlock('weekbarM', 'muscle');
-  document.getElementById('ultimosM').innerHTML = ult.length
+  renderWeekBlock(wbId, cat);
+  document.getElementById('ult_'+cat).innerHTML = ult.length
     ? ult.map(function(e){return liHtml(e,true);}).join('')
-    : '<div class="empty">Sin entrenos de fuerza todavía.</div>';
+    : '<div class="empty">Sin entrenos todavía.</div>';
 }
 
 /* ---------- DÍA (detalle pre-inicio) ---------- */
 function selectDia(diaId){
   var d = dayByKey(diaId);
   if(!d) return;
+  var cat = catOfRutina(d.rutinaId);
+  var C = CATMAP[cat] || CATMAP.muscle;
+  var rutName = (routineById(d.rutinaId)||{}).nombre || '';
   var exs = d.ejercicios || [];
   var rows = exs.map(function(ex,i){
     var h = exHistory(ex.exId);
@@ -1302,11 +1332,11 @@ function selectDia(diaId){
   }).join('');
 
   document.getElementById('screen-mday').innerHTML =
-    '<div class="scr-head"><button class="back" onclick="openMuscle()"><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg></button>'+
+    '<div class="scr-head"><button class="back" onclick="openStrength(\''+cat+'\')"><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg></button>'+
       '<h2>'+esc(d.dia)+' - '+esc(d.nombre)+'</h2></div>'+
     '<div class="rutina-sel"><span class="eyebrow">Rutina actual</span>'+
-      '<span class="selwrap" style="pointer-events:none"><span style="color:var(--red);font-weight:700;letter-spacing:1.5px;font-size:13px;text-transform:uppercase">'+esc(state.activeRutina||'')+'</span></span>'+
-      '<button class="cambiar" onclick="openMuscle()">Cambiar rutina <svg viewBox="0 0 24 24"><path d="M4 8h13l-3-3M20 16H7l3 3"/></svg></button></div>'+
+      '<span class="selwrap" style="pointer-events:none"><span style="color:'+C.color+';font-weight:700;letter-spacing:1.5px;font-size:13px;text-transform:uppercase">'+esc(rutName)+'</span></span>'+
+      '<button class="cambiar" onclick="openStrength(\''+cat+'\')">Cambiar rutina <svg viewBox="0 0 24 24"><path d="M4 8h13l-3-3M20 16H7l3 3"/></svg></button></div>'+
     '<div class="sec-head"><span class="t">Ejercicios del entreno</span><span class="more" style="color:var(--mut)">'+exs.length+' ejercicios</span></div>'+
     '<div class="exlist">'+rows+'</div>'+
     '<button class="btn-primary" onclick="startSession(\''+esc(diaId)+'\')">Comenzar entrenamiento</button>';
@@ -1379,7 +1409,7 @@ function startSession(diaId){
     };
   });
   session = {
-    rutinaId:d.rutinaId, dia:d.dia, diaNombre:d.nombre, startTs:Date.now(),
+    rutinaId:d.rutinaId, cat:catOfRutina(d.rutinaId), dia:d.dia, diaNombre:d.nombre, startTs:Date.now(),
     ejercicios:exs, cur:0, rest:null
   };
   saveSession();
@@ -1594,14 +1624,14 @@ function tick(){
 /* salir / finalizar */
 function confirmExit(){
   if(window.confirm('¿Salir sin finalizar? El entrenamiento sigue en curso y podrás reanudarlo.')){
-    stopTick(); openMuscle();
+    stopTick(); openStrength(session ? (session.cat||'muscle') : 'muscle');
   }
 }
 function finalizar(){
   if(!session) return;
   var T = sessTotals();
   if(T.done===0){
-    if(window.confirm('No has registrado ninguna serie. ¿Descartar el entrenamiento?')){ clearSession(); openMuscle(); }
+    if(window.confirm('No has registrado ninguna serie. ¿Descartar el entrenamiento?')){ var c=session.cat||'muscle'; clearSession(); openStrength(c); }
     return;
   }
   stopTick();
@@ -1632,7 +1662,7 @@ function guardarSesion(){
   var durSeg = Math.round(((session.endTs||Date.now()) - session.startTs)/1000);
   var entrenoId = 's_'+uid();
   var entreno = {
-    id:entrenoId, ts:session.startTs, cat:'muscle', rutinaId:session.rutinaId,
+    id:entrenoId, ts:session.startTs, cat:(session.cat||'muscle'), rutinaId:session.rutinaId,
     titulo:session.dia+' - '+session.diaNombre, dia:session.dia,
     durSeg:durSeg, fecha:isoDateOf(session.startTs), volumen:Math.round(T.vol), nota:''
   };
@@ -1813,8 +1843,13 @@ function exercisesWithData(){
 }
 function exName(exId){ var e=exById(exId); return e?e.ejercicio:exId; }
 function fmtFecha(ts){ var d=new Date(ts); return d.getDate()+' '+MES[d.getMonth()]+' '+d.getFullYear(); }
+/* caché de stats: se invalida sola cuando cambian los datos (dataRev) */
+var _memoVer=-1, _sfxCache={}, _wvCache={};
+function memoReset_(){ if(_memoVer!==dataRev){ _memoVer=dataRev; _sfxCache={}; _wvCache={}; } }
+
 /* sesiones (agrupadas por entreno) de un ejercicio, asc por fecha */
 function sessionsForEx(exId){
+  memoReset_(); if(_sfxCache[exId]) return _sfxCache[exId];
   var by={};
   (state.series||[]).forEach(function(s){
     if(String(s.ejercicioId)!==String(exId)) return;
@@ -1828,9 +1863,12 @@ function sessionsForEx(exId){
   var arr=Object.keys(by).map(function(k){ var o=by[k]; var en=entrenoById(k); if(en&&en.ts)o.ts=Number(en.ts);
     o.sets.sort(function(a,b){return a.serie-b.serie;}); return o; });
   arr.sort(function(a,b){return a.ts-b.ts;});
-  return arr;
+  _sfxCache[exId]=arr; return arr;
 }
 function winVol(from,to,musFilter,exFilter){
+  memoReset_();
+  var key=from+'|'+to+'|'+(musFilter||'')+'|'+(exFilter||'');
+  if(key in _wvCache) return _wvCache[key];
   var v=0;
   (state.series||[]).forEach(function(s){
     var t=Number(s.ts)||0; if(t<from||t>=to) return;
@@ -1838,7 +1876,7 @@ function winVol(from,to,musFilter,exFilter){
     if(exFilter && String(s.ejercicioId)!==String(exFilter)) return;
     v+=(Number(s.peso)||0)*(Number(s.reps)||0);
   });
-  return v;
+  _wvCache[key]=v; return v;
 }
 function pctChange(cur,prev){ if(!prev) return cur>0?100:0; return Math.round((cur-prev)/prev*100); }
 function trendColor(p){ return p>5?'var(--green)':(p<-5?'var(--red)':'var(--tan)'); }
