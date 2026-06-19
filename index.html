@@ -513,6 +513,23 @@ img{display:block}
 .bm-kg{font-family:'Bebas Neue',sans-serif;font-size:54px;color:var(--red);line-height:.9;margin:4px 0}
 .bm-kg span{font-size:22px;color:var(--ink);margin-left:4px}
 .bm-date{color:var(--mut);font-size:13px}
+
+/* ===== SECCIÓN RUTINA ===== */
+.seg{display:flex;gap:6px;margin:4px 16px 8px;background:var(--card);border:1px solid var(--line);border-radius:13px;padding:4px}
+.sgb{flex:1;border:0;background:transparent;color:var(--mut);font-weight:700;font-size:14px;padding:10px;border-radius:9px;cursor:pointer;letter-spacing:.3px}
+.sgb.on{background:var(--red);color:#fff}
+.rstat{display:flex;margin:8px 16px 0;background:var(--card);border:1px solid var(--line);border-radius:16px;overflow:hidden}
+.rsc{flex:1;text-align:center;padding:14px 4px;border-right:1px solid var(--line)}
+.rsc:last-child{border-right:0}
+.rsl{font-size:10px;letter-spacing:1px;text-transform:uppercase;color:var(--mut)}
+.rsv{font-family:'Bebas Neue',sans-serif;font-size:26px;line-height:1.1;margin:2px 0}
+.rss{font-size:10px;color:var(--mut)}
+.exlibrow{display:flex;align-items:center;gap:12px;width:100%;text-align:left;background:var(--card);
+  border:1px solid var(--line);border-radius:13px;padding:13px 14px;margin-bottom:8px;cursor:pointer;color:var(--ink)}
+.exlibrow .ti{font-weight:700;font-size:15px}
+.exlibrow .cat{font-size:12px;margin-top:2px}
+.exlibstats{display:flex;flex-wrap:wrap;gap:10px;margin-top:7px}
+.exlibstats span{font-size:11px;color:var(--mut);background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:2px 7px}
 </style>
 </head>
 <body>
@@ -549,14 +566,7 @@ img{display:block}
 <section class="screen" id="screen-bike"></section>
 
 <!-- ============ RUTINA ============ -->
-<section class="screen" id="screen-rutina">
-  <div class="scr-head"><h2>Rutina</h2></div>
-  <div class="scr-sub" id="rutinaSub">—</div>
-  <div class="empty">
-    <div class="big">En construcción</div>
-    Aquí elegirás la rutina vigente y verás sus días y ejercicios.
-  </div>
-</section>
+<section class="screen" id="screen-rutina"></section>
 
 <!-- ============ HISTORIAL ============ -->
 <section class="screen" id="screen-historial">
@@ -589,7 +599,7 @@ img{display:block}
    v0.1.0
    Arquitectura: index.html (GitHub Pages) + Apps Script /exec + Sheets
    =================================================================== */
-var VERSION = 'v0.9.0';
+var VERSION = 'v0.10.0';
 var BACKEND_URL = 'https://script.google.com/macros/s/AKfycbxHAlVHfjwy81evBc1ciFfkXYVvpWIg_ifnOonaaMvVuxxedl59pIiBkS47GIW7HNYj/exec';
 
 /* ---------- categorías ---------- */
@@ -1006,7 +1016,7 @@ function weekCardHtml(offset, mode){
     '<div class="wk-div"></div>'+
     '<div class="wk-time"><div><div class="tlab">Tiempo acumulado</div>'+
       '<div class="tval">'+fmtDur(totalSec)+'</div>'+
-      '<div class="tobj">Objetivo semanal: '+objMin+'m</div></div>'+
+      '<div class="tobj">Objetivo semanal: '+fmtDur(objMin*60)+'</div></div>'+
       '<span class="tic">⏱️</span></div>';
 }
 function renderWeekBlock(container, mode){
@@ -1242,7 +1252,6 @@ function renderAll(){
   if(!state) return;
   renderHero(); renderCards(); renderWeek(); renderUltimos();
   renderHistorial(); renderPerfil();
-  document.getElementById('rutinaSub').textContent = state.activeRutina || '—';
 }
 
 /* ===================================================================
@@ -1256,6 +1265,7 @@ function goScreen(id, navIdx){
   if(scr) scr.classList.add('active');
   if(id==='progreso') renderStatsHome();
   if(id==='perfil') renderPerfil();
+  if(id==='rutina') renderRutina();
   document.querySelectorAll('.tab').forEach(function(t){ t.classList.remove('active'); });
   if(navIdx!=null && NAV[navIdx]){ var tb=document.getElementById('tab-'+NAV[navIdx].id); if(tb) tb.classList.add('active'); }
   window.scrollTo(0,0);
@@ -2565,6 +2575,149 @@ function renderAbsMediciones(){
   document.getElementById('screen-progreso').innerHTML =
     statsHeader('Mediciones','absBack()')+
     (blocks||'<div class="empty">Aún no hay mediciones. Regístralas en la hoja <b>Medidas</b> (parte/valor).</div>');
+}
+
+/* ===================================================================
+   SECCIÓN RUTINA — Rutinas + biblioteca de Ejercicios + ficha
+   =================================================================== */
+var rutTab='rutinas', rutSel=null, libMus='all', exBackRef='renderRutina()';
+
+/* agregados por ejercicio sobre TODAS las series (independiente de categoría) */
+function exAllSeries(exId){ return (state.series||[]).filter(function(s){return String(s.ejercicioId)===String(exId);}); }
+function exTimes(exId){ var e={}; exAllSeries(exId).forEach(function(s){e[s.entrenoId]=1;}); return Object.keys(e).length; }
+function exMaxPeso(exId){ var m=0; exAllSeries(exId).forEach(function(s){ var p=+s.peso||0; if(p>m)m=p; }); return m; }
+function exVolAll(exId){ var v=0; exAllSeries(exId).forEach(function(s){ v+=(+s.peso||0)*(+s.reps||0); }); return v; }
+function exLastTs(exId){ var t=0; exAllSeries(exId).forEach(function(s){ var x=+s.ts||0; if(x>t)t=x; }); return t; }
+function exSessionsAll(exId){
+  var by={}; exAllSeries(exId).forEach(function(s){ var k=s.entrenoId; if(!by[k])by[k]={ts:0,sets:[],vol:0,max:0};
+    var p=+s.peso||0,r=+s.reps||0; by[k].sets.push({peso:p,reps:r,serie:+s.serie||by[k].sets.length+1});
+    by[k].vol+=p*r; if(p>by[k].max)by[k].max=p; var t=+s.ts||0; if(t>by[k].ts)by[k].ts=t; });
+  var arr=Object.keys(by).map(function(k){var o=by[k];var en=entrenoById(k); if(en&&en.ts)o.ts=+en.ts;
+    o.sets.sort(function(a,b){return a.serie-b.serie;}); return o;});
+  arr.sort(function(a,b){return a.ts-b.ts;}); return arr;
+}
+function routineExercises(rid){
+  var seen={}, out=[];
+  diasOf(rid).forEach(function(d){ (d.ejercicios||[]).forEach(function(ex){ if(!seen[ex.exId]){seen[ex.exId]=1; out.push(ex);} }); });
+  return out;
+}
+function routineStats(rid){
+  var ent=(state.entrenos||[]).filter(function(e){return String(e.rutinaId)===String(rid);});
+  var secs=0, ids={}; ent.forEach(function(e){ secs+=+e.durSeg||0; ids[e.id]=1; });
+  var vol=0; (state.series||[]).forEach(function(s){ if(ids[s.entrenoId]) vol+=(+s.peso||0)*(+s.reps||0); });
+  var exs=routineExercises(rid);
+  return {veces:ent.length, secs:secs, nex:exs.length, vol:vol, exs:exs};
+}
+function catalogMuscles(){ var m={}; (state.ejercicios||[]).forEach(function(e){ if(e.musculo) m[e.musculo]=1; }); return Object.keys(m).sort(); }
+
+function openRutinaTab(t){ rutTab=t; renderRutina(); }
+function setRutSel(id){ rutSel=id; renderRutina(); }
+function setLibMus(m){ libMus=m; renderRutina(); }
+
+function renderRutina(){
+  var seg='<div class="seg">'+
+    '<button class="sgb'+(rutTab==='rutinas'?' on':'')+'" onclick="openRutinaTab(\'rutinas\')">Rutinas</button>'+
+    '<button class="sgb'+(rutTab==='ejercicios'?' on':'')+'" onclick="openRutinaTab(\'ejercicios\')">Ejercicios</button></div>';
+  var body = (rutTab==='ejercicios') ? rutLibraryBody() : rutRutinasBody();
+  document.getElementById('screen-rutina').innerHTML =
+    '<div class="scr-head"><h2>Rutina</h2></div>'+ seg + body;
+}
+
+function rutRutinasBody(){
+  var rutinas = state.rutinas||[];
+  if(!rutinas.length) return '<div class="empty"><div class="big">Sin rutinas</div>Crea una rutina en la hoja <b>Rutinas</b>.</div>';
+  // rid seleccionado por defecto: la rutina de fuerza activa, o la primera
+  var rid = rutSel; if(!rid || !routineById(rid)) rid = activeRid('muscle') || rutinas[0].id;
+  var opts = rutinas.map(function(r){
+    var t=(r.tipo||'muscle'); var lab=esc(r.nombre)+' · '+((CATMAP[t]||{}).label||t.toUpperCase());
+    return '<option value="'+esc(r.id)+'"'+(String(r.id)===String(rid)?' selected':'')+'>'+lab+'</option>';
+  }).join('');
+  var cat=catOfRutina(rid), C=CATMAP[cat]||CATMAP.muscle;
+  var st=routineStats(rid);
+  var exHtml = st.exs.length ? st.exs.map(function(ex){
+    var tms=exTimes(ex.exId);
+    return '<button class="li" onclick="openExFicha(\''+esc(ex.exId)+'\',\'rutina\')">'+
+      '<div class="mid"><div class="ti">'+esc(ex.ejercicio)+'</div>'+
+        '<div class="cat" style="color:var(--mut)">'+esc(ex.musculo||'—')+' · '+esc(ex.equipamiento||'—')+'</div></div>'+
+      '<div class="right" style="color:var(--mut)">'+(tms?tms+'×':'—')+'</div><span class="chev">›</span></button>';
+  }).join('') : '<div class="empty">Esta rutina no tiene ejercicios. Añádelos en la hoja <b>Dias</b>.</div>';
+
+  return '<div class="rutina-sel"><span class="eyebrow">Rutina actual</span>'+
+      '<span class="selwrap"><select onchange="setRutSel(this.value)">'+opts+'</select></span></div>'+
+    '<div class="rstat" style="border-color:'+C.color+'33">'+
+      rstatCell('Realizada', st.veces, st.veces===1?'vez':'veces', C.color)+
+      rstatCell('Tiempo', fmtDur(st.secs), 'acumulado', 'var(--ink)')+
+      rstatCell('Ejercicios', st.nex, 'distintos', 'var(--ink)')+
+      rstatCell('Volumen', fmtMiles(st.vol), 'kg totales', 'var(--ink)')+
+    '</div>'+
+    '<div class="sec-head"><span class="t">Ejercicios de la rutina</span><span class="more" style="color:var(--mut)">'+st.nex+'</span></div>'+
+    '<div class="list">'+exHtml+'</div>';
+}
+function rstatCell(l,v,sub,col){
+  return '<div class="rsc"><div class="rsl">'+l+'</div><div class="rsv" style="color:'+col+'">'+v+'</div><div class="rss">'+sub+'</div></div>';
+}
+
+function rutLibraryBody(){
+  var muscles = catalogMuscles();
+  var sel='<span class="selwrap"><select onchange="setLibMus(this.value)">'+
+    '<option value="all"'+(libMus==='all'?' selected':'')+'>Todos los músculos</option>'+
+    muscles.map(function(m){return '<option value="'+esc(m)+'"'+(libMus===m?' selected':'')+'>'+esc(m)+'</option>';}).join('')+
+    '</select></span>';
+  var exs=(state.ejercicios||[]).filter(function(e){ return libMus==='all' || e.musculo===libMus; });
+  exs.sort(function(a,b){ var ta=exTimes(a.id), tb=exTimes(b.id); if(tb!==ta) return tb-ta; return String(a.ejercicio).localeCompare(String(b.ejercicio)); });
+  var rows=exs.map(function(e){
+    var tms=exTimes(e.id), mx=exMaxPeso(e.id), vol=exVolAll(e.id);
+    return '<button class="exlibrow" onclick="openExFicha(\''+esc(e.id)+'\',\'lib\')">'+
+      '<div class="mid"><div class="ti">'+esc(e.ejercicio)+'</div>'+
+        '<div class="cat" style="color:var(--mut)">'+esc(e.musculo||'—')+' · '+esc(e.equipamiento||'—')+'</div>'+
+        '<div class="exlibstats">'+
+          '<span>'+(tms?tms+'× hecho':'sin registros')+'</span>'+
+          (mx?'<span>máx '+fmtW(mx)+' kg</span>':'')+
+          (vol?'<span>vol '+fmtMiles(vol)+' kg</span>':'')+
+        '</div></div><span class="chev">›</span></button>';
+  }).join('');
+  return '<div class="filterbar2" style="margin-top:4px">'+sel+'<span class="histcount">'+exs.length+' ejercicios</span></div>'+
+    '<div class="list" style="margin-top:6px">'+(rows||'<div class="empty">Sin ejercicios para ese filtro.</div>')+'</div>';
+}
+
+function openExFicha(exId, from){
+  exBackRef = (from==='lib') ? 'openRutinaTab(\'ejercicios\')' : (from==='rutina' ? 'openRutinaTab(\'rutinas\')' : 'renderRutina()');
+  renderExFicha(exId);
+}
+function renderExFicha(exId){
+  var ex=exById(exId)||{ejercicio:exId,musculo:'—',equipamiento:'—'};
+  var ss=exSessionsAll(exId);
+  var tms=ss.length, mx=exMaxPeso(exId), vol=exVolAll(exId), lastTs=exLastTs(exId);
+  var media = ex.imagen
+    ? '<img class="exmuscle" src="'+esc(ex.imagen)+'" alt="" data-mus="'+esc(ex.musculo||'')+'" onerror="muscleFallback(this)">'
+    : '';
+  var video = ex.video
+    ? '<div class="videowrap"><video src="'+esc(ex.video)+'" controls playsinline loop preload="metadata" '+
+      'onerror="var w=this.closest(\'.videowrap\'); if(w) w.remove();"></video></div>' : '';
+  var fitlink = ex.enlace
+    ? '<a class="fitlink" href="'+esc(ex.enlace)+'" target="_blank" rel="noopener">Ver en Fitbod ↗</a>' : '';
+  var pts = ss.map(function(o){ return {label:MES[new Date(o.ts).getMonth()], v:o.max}; });
+  var chart = pts.length>1 ? '<div class="sec-head"><span class="t">Progresión de peso</span></div><div class="chartcard">'+svgLine(pts,'var(--red)')+'</div>' : '';
+  var hist = ss.slice().reverse().map(function(o){
+    var line=o.sets.map(function(s){return fmtW(s.peso)+' x '+s.reps;}).join('   ');
+    return '<div class="histrow"><div class="hl"><div class="hd">'+fmtFecha(o.ts)+'</div><div class="hs">'+esc(line)+'</div></div>'+
+      '<div class="hv">'+fmtMiles(o.vol)+'<small> kg</small></div></div>';
+  }).join('');
+
+  document.getElementById('screen-rutina').innerHTML =
+    '<div class="scr-head"><button class="back" onclick="'+exBackRef+'"><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg></button>'+
+      '<h2 style="font-size:24px">'+esc(ex.ejercicio)+'</h2></div>'+
+    '<div class="scr-sub" style="color:var(--red)">'+esc(ex.musculo||'—')+' · '+esc(ex.equipamiento||'—')+'</div>'+
+    media + video + fitlink +
+    '<div class="kpi3" style="margin-top:14px">'+
+      kpiS('Veces realizado', tms)+
+      kpiS('Peso máximo', fmtW(mx)+' kg')+
+      kpiS('Volumen total', fmtMiles(vol)+' kg')+
+    '</div>'+
+    (lastTs?'<div class="exsub">última vez: '+fmtFecha(lastTs)+'</div>':'')+
+    chart +
+    '<div class="sec-head"><span class="t">Histórico de sesiones</span></div>'+
+    '<div class="histlist">'+(hist||'<div class="empty">Aún no has registrado este ejercicio.</div>')+'</div>';
 }
 
 function boot(){
